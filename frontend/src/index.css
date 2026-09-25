@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+/* -----------------------------------------------------------------------------
+   TwinCare design tokens
+
+   The palette is taken from the logo: two violets that meet in the middle of
+   the mark, #663FFC handing over to #3D2DB8 — which is the product in one
+   image, two halves sharing one record. Everything else is built around them.
+
+   Backgrounds are white. Structure comes from hairlines, not grey fills.
+   -------------------------------------------------------------------------- */
+@theme {
+  /* Brand, sampled from public/logo.png */
+  --color-brand-light:    #663ffc;
+  --color-brand-deep:     #3d2db8;
+
+  --color-primary:        #5333ee;
+  --color-primary-hover:  #3d2db8;
+  --color-primary-soft:   #ede9fe;
+
+  --color-surface:        #ffffff;
+  --color-surface-muted:  #ffffff;
+  --color-surface-sunken: #f5f3fe;
+  --color-border:         #e5e1f5;
+  --color-border-strong:  #cec7ea;
+
+  --color-ink:            #1a1733;
+  --color-ink-muted:      #6a6585;
+
+  /* Risk stays conventional. Safety signals are never brand colours: a
+     clinician reads red as red, whatever the product's palette is. */
+  --color-risk-low:       #0e9f6e;
+  --color-risk-medium:    #c77700;
+  --color-risk-high:      #e05a2b;
+  --color-risk-critical:  #d92d20;
+
+  /* Care phase. Hospital carries the brand indigo because the institution is
+     the brand; home turns green, the colour of recovery. */
+  --color-phase-hospital: #3d2db8;
+  --color-phase-home:     #0e9f6e;
+
+  --color-synthetic:      #8b5cf6;
+
+  /* The sign-in story panel sits on the same white as everything else. */
+  --color-panel:          #ffffff;
+  --color-panel-ink:      #1a1733;
+  --color-panel-muted:    #6a6585;
+  --color-panel-line:     #e5e1f5;
+
+  --font-sans:  "Golos Text", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Literata", ui-serif, Georgia, serif;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Clinical numbers only line up in columns with tabular figures. */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* -----------------------------------------------------------------------------
+   The continuity spine
+
+   The one piece of motion in the product: on sign-in the patient journey draws
+   itself downward once, past the discharge marker and off the bottom edge. The
+   movement IS the argument, so it runs once and nothing else on the page moves.
+   -------------------------------------------------------------------------- */
+@keyframes spine-draw {
+  from { clip-path: inset(0 0 100% 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+
+.spine {
+  animation: spine-draw 1.25s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* Connector running through the marker column of each step. */
+.spine-step::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-phase-hospital);
+}
+
+/* After discharge the line keeps going, but as a dotted trace: the same record,
+   a different level of care. */
+.spine-step[data-phase="home"]::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--color-phase-home) 0 4px,
+    transparent 4px 9px
+  );
+}
+
+.spine-step:first-child::before { top: 0.55rem; }
+
+/* The final connector fades out rather than stopping: the record has no end. */
+.spine-tail::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 0;
+  height: 4.5rem;
+  width: 2px;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--color-phase-home) 0 4px,
+    transparent 4px 9px
+  );
+  mask-image: linear-gradient(to bottom, #000, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spine { animation: none; }
+}
