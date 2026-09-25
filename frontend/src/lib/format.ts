@@ -23,7 +23,6 @@ export function ageFromBirthDate(birthDate: string | null): number | null {
   return age
 }
 
-/** "3 мин назад", "2 ч назад", "5 дн назад" — the Digital Twin freshness stamp. */
 export function relativeTime(iso: string | null): string {
   if (!iso) return 'никогда'
   const then = new Date(iso).getTime()
@@ -44,6 +43,13 @@ export function relativeTime(iso: string | null): string {
   return new Date(iso).toLocaleDateString(LOCALE)
 }
 
+export function dateShort(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString(LOCALE, {
+    day: 'numeric', month: 'short', year: 'numeric',
+  })
+}
+
 export function dateTime(iso: string): string {
   return new Date(iso).toLocaleString(LOCALE, {
     day: '2-digit',
@@ -53,7 +59,6 @@ export function dateTime(iso: string): string {
   })
 }
 
-/** Russian writes 38,2 — not 38.2. Clinical values must follow that. */
 export function decimal(value: number | null, fractionDigits = 1): string {
   if (value === null) return '—'
   return value.toLocaleString(LOCALE, {

@@ -1,6 +1,4 @@
--- enum values for the wearable metrics.
--- has to be its own migration: postgres will not let you add an enum value and
--- use it in the same transaction, and supabase wraps each file in one.
+-- Новые значения enum используются только в следующей миграции, после завершения транзакции.
 
 alter type public.observation_type add value if not exists 'HRV';
 alter type public.observation_type add value if not exists 'RESTING_HEART_RATE';

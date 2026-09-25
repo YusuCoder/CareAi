@@ -1,12 +1,4 @@
-/**
- * Types for the TwinCare schema.
- *
- * Hand-written stopgap that mirrors supabase/migrations/. Regenerate properly
- * once the Supabase CLI is available:
- *
- *   npx supabase gen types typescript --project-id wrjttmjkawtqjpgveyzj \
- *     > src/lib/database.types.ts
- */
+// Типы поддерживаются вручную; после изменений схемы сверяйте их с миграциями.
 
 export type OrganizationType =
   | 'CENTRAL_HOSPITAL' | 'POLYCLINIC' | 'PRIVATE_CLINIC'
@@ -60,6 +52,10 @@ export type ProcedureCategory = 'SURGERY' | 'IMAGING' | 'DIAGNOSTIC' | 'THERAPEU
 export type AllergySeverity = 'MILD' | 'MODERATE' | 'SEVERE'
 export type AllergyStatus = 'ACTIVE' | 'INACTIVE'
 
+export type SmokingStatus = 'NEVER' | 'FORMER' | 'CURRENT' | 'UNKNOWN'
+export type AlcoholUse = 'NONE' | 'OCCASIONAL' | 'REGULAR' | 'HEAVY' | 'UNKNOWN'
+export type PhysicalActivity = 'SEDENTARY' | 'LIGHT' | 'MODERATE' | 'ACTIVE' | 'UNKNOWN'
+
 export type CarePhase = 'HOSPITAL' | 'HOME'
 export type TwinEventSeverity = 'INFO' | 'WARNING' | 'CRITICAL'
 
@@ -77,9 +73,7 @@ export type DeviceProvider =
 export type DeviceStatus = 'ACTIVE' | 'INACTIVE' | 'REVOKED' | 'ERROR'
 export type DeviceSyncStatus = 'SUCCESS' | 'PARTIAL' | 'FAILED'
 
-// --- Rows --------------------------------------------------------------------
-
-export interface Profile {
+export type Profile = {
   id: string
   first_name: string | null
   last_name: string | null
@@ -90,7 +84,7 @@ export interface Profile {
   updated_at: string
 }
 
-export interface Organization {
+export type Organization = {
   id: string
   name: string
   type: OrganizationType
@@ -105,7 +99,7 @@ export interface Organization {
   updated_at: string
 }
 
-export interface OrganizationMembership {
+export type OrganizationMembership = {
   id: string
   organization_id: string
   user_id: string
@@ -116,7 +110,7 @@ export interface OrganizationMembership {
   updated_at: string
 }
 
-export interface Patient {
+export type Patient = {
   id: string
   patient_number: number
   national_id: string | null
@@ -136,7 +130,7 @@ export interface Patient {
   updated_at: string
 }
 
-export interface DigitalTwin {
+export type DigitalTwin = {
   id: string
   patient_id: string
   current_status: TwinStatus
@@ -145,7 +139,7 @@ export interface DigitalTwin {
   created_at: string
 }
 
-export interface Hospitalization {
+export type Hospitalization = {
   id: string
   patient_id: string
   organization_id: string
@@ -161,7 +155,7 @@ export interface Hospitalization {
   updated_at: string
 }
 
-export interface CarePlan {
+export type CarePlan = {
   id: string
   patient_id: string
   hospitalization_id: string | null
@@ -176,11 +170,32 @@ export interface CarePlan {
   end_date: string | null
   status: CarePlanStatus
   approved_at: string | null
+  completed_by: string | null
+  completed_at: string | null
+  completion_note: string | null
   created_at: string
   updated_at: string
 }
 
-export interface CareAssignment {
+export type FollowUpCandidate = {
+  care_plan_id: string
+  patient_id: string
+  patient_number: number
+  first_name: string
+  last_name: string
+  plan_title: string
+  plan_end_date: string | null
+  risk_level: RiskLevel | null
+  last_observation_at: string | null
+  last_abnormal_at: string | null
+  patient_reports: number
+  stable_days: number
+  plan_overdue: boolean
+  silent: boolean
+  ready: boolean
+}
+
+export type CareAssignment = {
   id: string
   patient_id: string
   care_plan_id: string
@@ -196,14 +211,14 @@ export interface CareAssignment {
   updated_at: string
 }
 
-interface ClinicalProvenance {
+type ClinicalProvenance = {
   source: ClinicalSource
   organization_id: string | null
   created_at: string
   updated_at: string
 }
 
-export interface Diagnosis extends ClinicalProvenance {
+export type Diagnosis = ClinicalProvenance & {
   id: string
   patient_id: string
   hospitalization_id: string | null
@@ -217,7 +232,7 @@ export interface Diagnosis extends ClinicalProvenance {
   recorded_by: string | null
 }
 
-export interface Observation extends ClinicalProvenance {
+export type Observation = ClinicalProvenance & {
   id: string
   patient_id: string
   hospitalization_id: string | null
@@ -236,7 +251,7 @@ export interface Observation extends ClinicalProvenance {
   external_id: string | null
 }
 
-export interface LabResult extends ClinicalProvenance {
+export type LabResult = ClinicalProvenance & {
   id: string
   patient_id: string
   hospitalization_id: string | null
@@ -255,7 +270,7 @@ export interface LabResult extends ClinicalProvenance {
   recorded_by: string | null
 }
 
-export interface Medication extends ClinicalProvenance {
+export type Medication = ClinicalProvenance & {
   id: string
   patient_id: string
   hospitalization_id: string | null
@@ -273,7 +288,7 @@ export interface Medication extends ClinicalProvenance {
   prescribed_by: string | null
 }
 
-export interface Procedure extends ClinicalProvenance {
+export type Procedure = ClinicalProvenance & {
   id: string
   patient_id: string
   hospitalization_id: string | null
@@ -286,7 +301,7 @@ export interface Procedure extends ClinicalProvenance {
   notes: string | null
 }
 
-export interface Allergy extends ClinicalProvenance {
+export type Allergy = ClinicalProvenance & {
   id: string
   patient_id: string
   substance: string
@@ -298,7 +313,7 @@ export interface Allergy extends ClinicalProvenance {
   recorded_by: string | null
 }
 
-export interface TwinEvent {
+export type TwinEvent = {
   id: string
   patient_id: string
   event_type: TwinEventType
@@ -315,7 +330,45 @@ export interface TwinEvent {
   created_at: string
 }
 
-export interface Device {
+export type PatientProfile = {
+  patient_id: string
+  smoking_status: SmokingStatus
+  smoking_pack_years: number | null
+  alcohol_use: AlcoholUse
+  physical_activity: PhysicalActivity
+  family_history: string[]
+  genetic_markers: Record<string, unknown>
+  notes: string | null
+  updated_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type SimulationInputs = {
+  patient_id: string
+  age_years: number | null
+  sex: Gender
+  height_cm: number | null
+  weight_kg: number | null
+  bmi: number | null
+  systolic: number | null
+  diastolic: number | null
+  hba1c: number | null
+  total_cholesterol: number | null
+  hdl: number | null
+  creatinine: number | null
+  smoking: SmokingStatus
+  alcohol: AlcoholUse
+  activity: PhysicalActivity
+  has_diabetes: boolean
+  diabetes_years: number | null
+  has_heart_failure: boolean
+  has_hypertension: boolean
+  family_history: string[]
+  missing: string[]
+}
+
+export type Device = {
   id: string
   patient_id: string
   provider: DeviceProvider
@@ -333,7 +386,7 @@ export interface Device {
   updated_at: string
 }
 
-export interface DeviceSyncLog {
+export type DeviceSyncLog = {
   id: string
   device_id: string
   patient_id: string
@@ -346,11 +399,9 @@ export interface DeviceSyncLog {
   created_at: string
 }
 
-// --- Database shape for the Supabase client ----------------------------------
-
 type Table<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] }
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       profiles: Table<Profile>
@@ -368,11 +419,15 @@ export interface Database {
       procedures: Table<Procedure>
       allergies: Table<Allergy>
       twin_events: Table<TwinEvent>
+      patient_profile: Table<PatientProfile>
       devices: Table<Device>
       device_sync_log: Table<DeviceSyncLog>
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      follow_up_candidates: { Args: Record<string, never>; Returns: FollowUpCandidate[] }
+      simulation_inputs: { Args: { p_patient_id: string }; Returns: SimulationInputs[] }
+    }
     Enums: {
       risk_level: RiskLevel
       twin_status: TwinStatus

@@ -1,0 +1,7 @@
+{
+  "// Supabase Edge Functions run on Deno, not Node": "Only this folder uses the Deno language server; the React app keeps the TypeScript one.",
+  "deno.enable": false,
+  "deno.enablePaths": ["supabase/functions"],
+  "deno.lint": true,
+  "deno.importMap": "./supabase/functions/deno.json"
+}

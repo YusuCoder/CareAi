@@ -1,16 +1,8 @@
--- rls policies.
--- everything patient related goes through private.can_access_patient().
--- hospital doctor: patients admitted with us
--- polyclinic doctor / admin: our care plans and our registered patients
--- nurse: only patients assigned to her personally
-
--- without this, insert ... returning fails: a new patient has no episode yet
--- so nothing would match the select policy
 alter table public.patients
   add column if not exists created_by uuid references public.profiles (id) on delete set null
     default auth.uid();
 
-comment on column public.patients.created_by is 'Clinician who registered the patient.';
+comment on column public.patients.created_by is 'Медработник, зарегистрировавший пациента.';
 
 create index if not exists patients_created_by_idx on public.patients (created_by);
 
@@ -31,8 +23,7 @@ as $$
   );
 $$;
 
-comment on function private.is_super_admin() is
-  'Does the current user hold an active SUPER_ADMIN membership anywhere.';
+comment on function private.is_super_admin() is 'Проверяет наличие у текущего пользователя активной роли SUPER_ADMIN.';
 
 
 create or replace function private.current_org_ids()
@@ -63,8 +54,7 @@ as $$
      and m.role in ('ORGANIZATION_ADMIN', 'HOSPITAL_DOCTOR', 'POLYCLINIC_DOCTOR');
 $$;
 
-comment on function private.patient_access_org_ids() is
-  'Organizations whose whole patient population the user may see.';
+comment on function private.patient_access_org_ids() is 'Организации, всех пациентов которых может видеть текущий пользователь.';
 
 
 create or replace function private.has_org_role(
@@ -122,8 +112,6 @@ as $$
 $$;
 
 
--- security definer on purpose: this reads the same tables whose policies call
--- it, so without it the policies would recurse
 create or replace function private.can_access_patient(p_patient_id uuid)
 returns boolean
 language sql
@@ -136,7 +124,6 @@ as $$
     and (
       private.is_super_admin()
 
-      -- Treating organization: the patient was or is admitted with us.
       or exists (
         select 1
           from public.hospitalizations h
@@ -144,7 +131,6 @@ as $$
            and h.organization_id = any(private.patient_access_org_ids())
       )
 
-      -- Care continuity: we sent the patient out, or we received them.
       or exists (
         select 1
           from public.care_plans cp
@@ -155,7 +141,6 @@ as $$
            )
       )
 
-      -- Territorial population of our polyclinic.
       or exists (
         select 1
           from public.patients p
@@ -163,7 +148,6 @@ as $$
            and p.primary_clinic_id = any(private.patient_access_org_ids())
       )
 
-      -- Personally assigned to me. This is the ONLY route for a nurse.
       or exists (
         select 1
           from public.care_assignments ca
@@ -171,7 +155,6 @@ as $$
            and ca.assigned_user_id = (select auth.uid())
       )
 
-      -- I registered this patient (covers INSERT ... RETURNING).
       or exists (
         select 1
           from public.patients p
@@ -181,8 +164,7 @@ as $$
     );
 $$;
 
-comment on function private.can_access_patient(uuid) is
-  'The single authorization rule for patient data.';
+comment on function private.can_access_patient(uuid) is 'Единая проверка доступа к данным пациента.';
 
 
 grant usage on schema private to authenticated;
@@ -198,7 +180,6 @@ grant execute on function
 to authenticated;
 
 
--- start read only, then hand back writes table by table
 revoke insert, update, delete, truncate on all tables in schema public from authenticated;
 grant select on all tables in schema public to authenticated;
 
@@ -244,8 +225,6 @@ create policy "Members can read memberships of their organizations"
   using ((select private.current_org_ids()) @> array[organization_id]);
 
 
--- wrapped in (select ...) so postgres evaluates it once per statement instead
--- of once per row
 drop policy if exists "Read accessible patients" on public.patients;
 create policy "Read accessible patients"
   on public.patients for select to authenticated

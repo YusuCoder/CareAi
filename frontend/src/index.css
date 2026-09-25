@@ -1,16 +1,5 @@
 @import "tailwindcss";
-
-/* -----------------------------------------------------------------------------
-   TwinCare design tokens
-
-   The palette is taken from the logo: two violets that meet in the middle of
-   the mark, #663FFC handing over to #3D2DB8 — which is the product in one
-   image, two halves sharing one record. Everything else is built around them.
-
-   Backgrounds are white. Structure comes from hairlines, not grey fills.
-   -------------------------------------------------------------------------- */
 @theme {
-  /* Brand, sampled from public/logo.png */
   --color-brand-light:    #663ffc;
   --color-brand-deep:     #3d2db8;
 
@@ -26,26 +15,26 @@
 
   --color-ink:            #1a1733;
   --color-ink-muted:      #6a6585;
-
-  /* Risk stays conventional. Safety signals are never brand colours: a
-     clinician reads red as red, whatever the product's palette is. */
   --color-risk-low:       #0e9f6e;
   --color-risk-medium:    #c77700;
   --color-risk-high:      #e05a2b;
   --color-risk-critical:  #d92d20;
-
-  /* Care phase. Hospital carries the brand indigo because the institution is
-     the brand; home turns green, the colour of recovery. */
   --color-phase-hospital: #3d2db8;
   --color-phase-home:     #0e9f6e;
 
   --color-synthetic:      #8b5cf6;
-
-  /* The sign-in story panel sits on the same white as everything else. */
-  --color-panel:          #ffffff;
-  --color-panel-ink:      #1a1733;
-  --color-panel-muted:    #6a6585;
-  --color-panel-line:     #e5e1f5;
+  --color-panel:          #3d2db8;
+  --color-panel-ink:      #f6f3ff;
+  --color-panel-muted:    #c2b6f0;
+  --color-panel-line:     #5b47cc;
+  --color-spine-hospital: #cfc4ff;
+  --color-spine-home:     #7ee2b8;
+  --color-spine-alert:    #ffc65c;
+  --color-rail:        #3a2bb0;
+  --color-rail-deep:   #2b1f8e;
+  --color-rail-item:   rgb(255 255 255 / 0.09);
+  --color-rail-hover:  rgb(255 255 255 / 0.16);
+  --color-rail-line:   rgb(255 255 255 / 0.12);
 
   --font-sans:  "Golos Text", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Literata", ui-serif, Georgia, serif;
@@ -59,65 +48,137 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
-
-/* Clinical numbers only line up in columns with tabular figures. */
 .tabular { font-variant-numeric: tabular-nums; }
-
-/* -----------------------------------------------------------------------------
-   The continuity spine
-
-   The one piece of motion in the product: on sign-in the patient journey draws
-   itself downward once, past the discharge marker and off the bottom edge. The
-   movement IS the argument, so it runs once and nothing else on the page moves.
-   -------------------------------------------------------------------------- */
-@keyframes spine-draw {
-  from { clip-path: inset(0 0 100% 0); }
-  to   { clip-path: inset(0 0 0 0); }
+.brand-panel {
+  background: linear-gradient(158deg, var(--color-brand-light) 0%, var(--color-brand-deep) 100%);
+}
+@media (min-width: 1024px) {
+  .brand-panel { clip-path: url(#careCurve); }
 }
 
-.spine {
-  animation: spine-draw 1.25s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+@keyframes scene-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
 }
 
-/* Connector running through the marker column of each step. */
-.spine-step::before {
+@keyframes scene-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-10px); }
+}
+
+.scene-in  { animation: scene-in 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.scene-out { animation: scene-out 0.46s ease-in both; }
+
+@keyframes story-reveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.story-reveal { animation: story-reveal 0.45s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.story-node > * {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.story-node[data-shown] > * { opacity: 1; transform: none; }
+
+.story-node::before {
   content: "";
   position: absolute;
   left: 5px;
-  top: 0;
+  top: 0.55rem;
   bottom: 0;
   width: 2px;
-  background: var(--color-phase-hospital);
+  background: var(--color-spine-hospital);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-
-/* After discharge the line keeps going, but as a dotted trace: the same record,
-   a different level of care. */
-.spine-step[data-phase="home"]::before {
+.story-node[data-phase="home"]::before {
   background: repeating-linear-gradient(
     to bottom,
-    var(--color-phase-home) 0 4px,
+    var(--color-spine-home) 0 4px,
     transparent 4px 9px
   );
 }
 
-.spine-step:first-child::before { top: 0.55rem; }
+.story-node[data-shown]::before { transform: scaleY(1); }
+.story-node:last-child::before { display: none; }
 
-/* The final connector fades out rather than stopping: the record has no end. */
-.spine-tail::before {
-  content: "";
-  position: absolute;
-  left: 5px;
-  top: 0;
-  height: 4.5rem;
-  width: 2px;
-  background: repeating-linear-gradient(
-    to bottom,
-    var(--color-phase-home) 0 4px,
-    transparent 4px 9px
-  );
-  mask-image: linear-gradient(to bottom, #000, transparent);
+.story-node-mark { transition: transform 0.4s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.story-node:not([data-shown]) .story-node-mark { transform: scale(0.2); }
+@keyframes step-fill {
+  from { background-color: rgb(255 255 255 / 0.06); color: var(--color-panel-muted); }
+  to   { background-color: color-mix(in oklab, var(--step-color) 20%, transparent);
+         color: var(--step-color); }
+}
+
+.story-step {
+  background-color: rgb(255 255 255 / 0.06);
+  color: var(--color-panel-muted);
+  animation: step-fill 0.5s ease-out both;
+}
+@keyframes curve-travel {
+  from { stroke-dashoffset: 1.2; }
+  to   { stroke-dashoffset: -0.25; }
+}
+
+.curve-glow {
+  stroke-dasharray: 0.16 1.1;
+  filter: blur(3px);
+  opacity: 0.8;
+  animation: curve-travel 7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes curve-pulse {
+  0%   { stroke-dashoffset: 1.05; opacity: 0; }
+  18%  { opacity: 0.9; }
+  100% { stroke-dashoffset: -0.08; opacity: 0; }
+}
+
+.curve-pulse {
+  stroke-dasharray: 0.05 1.2;
+  filter: blur(1.5px);
+  animation: curve-pulse 1.6s ease-out both;
+}
+@keyframes logo-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+.logo-in { animation: logo-in 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-in,
+  .scene-out,
+  .story-reveal,
+  .story-step,
+  .curve-glow,
+  .curve-pulse,
+  .logo-in {
+    animation: none;
+  }
+  .story-node > *,
+  .story-node::before,
+  .story-node-mark {
+    transition: none;
+  }
+}
+.rail {
+  background: linear-gradient(180deg, var(--color-rail) 0%, var(--color-rail-deep) 100%);
+}
+.rail-tip {
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.rail-item:hover .rail-tip,
+.rail-item:focus-visible .rail-tip {
+  opacity: 1;
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spine { animation: none; }
+  .rail-tip { transition: none; }
 }

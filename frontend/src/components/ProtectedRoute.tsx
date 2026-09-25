@@ -7,7 +7,6 @@ import { roleLabel, t } from '../lib/i18n'
 
 interface Props {
   children: ReactNode
-  /** When set, the signed-in user must hold one of these roles. */
   allow?: MembershipRole[]
 }
 

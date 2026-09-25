@@ -1,3 +1,10 @@
-./frontend/.env
-seed.sql
+# local env — never commit keys
+frontend/.env
+frontend/.env.local
+supabase/functions/.env
+.env
+
 .mcp.json
+node_modules/
+dist/
+.DS_Store

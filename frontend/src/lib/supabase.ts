@@ -1,3 +1,5 @@
+// В браузере допускается только публичный ключ; service_role обходит RLS.
+
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 
@@ -10,13 +12,6 @@ if (!url || !anonKey) {
   )
 }
 
-/**
- * The browser client. ANON KEY ONLY.
- *
- * Every read and write here goes through Row Level Security as the signed-in
- * user, which is what makes a nurse see only her assigned patients. The
- * service_role key must never appear in this project.
- */
 export const supabase = createClient<Database>(url, anonKey, {
   auth: {
     persistSession: true,

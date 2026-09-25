@@ -1,8 +1,3 @@
--- fix: these two triggers read OLD while handling an INSERT, where OLD is not
--- assigned. it only works today because postgres happens to short circuit the
--- OR, which is not guaranteed. the tg_op check is now its own if.
--- logic and error messages are unchanged.
-
 create or replace function public.care_plans_before_write()
 returns trigger
 language plpgsql
@@ -13,15 +8,12 @@ declare
   v_hospitalization_status public.hospitalization_status;
   v_approver_changed       boolean;
 begin
-  -- Decide up front whether the approver is being set, so OLD is read only on
-  -- UPDATE. On INSERT any non-null approver is by definition new.
   if tg_op = 'UPDATE' then
     v_approver_changed := new.approved_by is distinct from old.approved_by;
   else
     v_approver_changed := true;
   end if;
 
-  -- Receiving organization defaults to the territorial polyclinic of the patient.
   if tg_op = 'INSERT' and new.receiving_organization_id is null then
     select p.primary_clinic_id
       into new.receiving_organization_id
@@ -34,7 +26,6 @@ begin
     end if;
   end if;
 
-  -- A plan cannot take effect while the patient is still admitted.
   if new.status in ('ACTIVE', 'COMPLETED') and new.hospitalization_id is not null then
     select h.status
       into v_hospitalization_status
@@ -47,7 +38,6 @@ begin
     end if;
   end if;
 
-  -- Only a clinician of the source or receiving organization may approve.
   if new.approved_by is not null and v_approver_changed then
     if not exists (
       select 1
@@ -70,8 +60,7 @@ begin
 end;
 $$;
 
-comment on function public.care_plans_before_write() is
-  'BEFORE INSERT/UPDATE on care_plans: defaults receiving org to the patient''s polyclinic, blocks activation before discharge, and requires clinician approval.';
+comment on function public.care_plans_before_write() is 'Подставляет поликлинику пациента, запрещает активацию до выписки и требует утверждения врачом.';
 
 
 create or replace function public.care_assignments_before_write()
@@ -85,8 +74,6 @@ declare
   v_assignee_changed boolean;
   v_assigner_changed boolean;
 begin
-  -- Same reasoning as above: OLD is touched only when it exists. On INSERT
-  -- both the assignee and the assigner are new and must always be validated.
   if tg_op = 'UPDATE' then
     v_assignee_changed := new.assigned_user_id is distinct from old.assigned_user_id
                        or new.organization_id  is distinct from old.organization_id;
@@ -96,7 +83,6 @@ begin
     v_assigner_changed := true;
   end if;
 
-  -- Only clinician-approved (ACTIVE) care plans can be assigned.
   if tg_op = 'INSERT' then
     select cp.status
       into v_care_plan_status
@@ -109,7 +95,6 @@ begin
     end if;
   end if;
 
-  -- Assignee must be an active nurse or polyclinic doctor of the organization.
   if v_assignee_changed then
     if not exists (
       select 1
@@ -124,7 +109,6 @@ begin
     end if;
   end if;
 
-  -- Assigner must be the organization admin or a super admin.
   if new.assigned_by is not null and v_assigner_changed then
     if not exists (
       select 1
@@ -145,8 +129,7 @@ begin
 end;
 $$;
 
-comment on function public.care_assignments_before_write() is
-  'BEFORE INSERT/UPDATE on care_assignments: requires an ACTIVE care plan, an eligible assignee and an authorized assigner.';
+comment on function public.care_assignments_before_write() is 'Проверяет активность плана, допустимость исполнителя и полномочия назначающего.';
 
 
 revoke execute on function

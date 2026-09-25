@@ -1,7 +1,3 @@
--- wearables. readings land in observations like everything else, the device
--- just says where they came from. oauth tokens go in the private schema so
--- postgrest cannot reach them.
-
 create type public.device_provider as enum (
   'WHOOP',
   'APPLE_HEALTH',
@@ -21,7 +17,6 @@ create type public.device_status as enum (
 create type public.device_sync_status as enum ('SUCCESS', 'PARTIAL', 'FAILED');
 
 
--- one active device per provider per patient
 create table public.devices (
   id                  uuid primary key default gen_random_uuid(),
   patient_id          uuid not null references public.patients (id) on delete cascade,
@@ -45,11 +40,10 @@ create table public.devices (
     check (status <> 'REVOKED' or unlinked_at is not null)
 );
 
-comment on table public.devices is 'A connected wearable linked to a patient.';
-comment on column public.devices.is_simulated is 'TRUE for demo/simulator devices.';
-comment on column public.devices.external_device_id is
-  'The provider''s own identifier for this device, used to match incoming sync payloads.';
-comment on column public.devices.last_sync_at is 'Last successful ingestion.';
+comment on table public.devices is 'Носимые устройства пациентов.';
+comment on column public.devices.is_simulated is 'Признак демонстрационного устройства с синтетическими данными.';
+comment on column public.devices.external_device_id is 'Идентификатор устройства у провайдера для сопоставления данных синхронизации.';
+comment on column public.devices.last_sync_at is 'Время последней успешной загрузки данных.';
 
 create index devices_patient_status_idx on public.devices (patient_id, status);
 create index devices_status_idx on public.devices (status);
@@ -69,12 +63,11 @@ create trigger devices_set_updated_at
 
 create schema if not exists private;
 
-comment on schema private is 'Server-only objects.';
+comment on schema private is 'Объекты, доступные только серверу.';
 
 revoke all on schema private from public;
 grant usage on schema private to service_role;
 
--- secrets. service role only.
 create table private.device_connections (
   id                 uuid primary key default gen_random_uuid(),
   patient_id         uuid not null references public.patients (id) on delete cascade,
@@ -94,7 +87,7 @@ create table private.device_connections (
     unique (patient_id, provider)
 );
 
-comment on table private.device_connections is 'Provider OAuth tokens.';
+comment on table private.device_connections is 'Токены OAuth для подключения к провайдерам устройств.';
 
 create index device_connections_device_id_idx on private.device_connections (device_id);
 create index device_connections_status_idx on private.device_connections (status);
@@ -127,7 +120,7 @@ create table public.device_sync_log (
     check (status <> 'FAILED' or error_message is not null)
 );
 
-comment on table public.device_sync_log is 'One row per ingestion run.';
+comment on table public.device_sync_log is 'Журнал запусков синхронизации устройств.';
 
 create index device_sync_log_device_started_idx
   on public.device_sync_log (device_id, started_at desc);
@@ -137,15 +130,12 @@ create index device_sync_log_failures_idx
   on public.device_sync_log (started_at desc) where status <> 'SUCCESS';
 
 
--- (device_id, external_id) is the idempotency key, otherwise every resync
--- duplicates the whole history
 alter table public.observations
   add column device_id   uuid references public.devices (id) on delete set null,
   add column external_id text;
 
-comment on column public.observations.device_id is
-  'The device that produced this reading, when source = DEVICE.';
-comment on column public.observations.external_id is 'The provider''s own id for this reading.';
+comment on column public.observations.device_id is 'Устройство, передавшее измерение с источником DEVICE.';
+comment on column public.observations.external_id is 'Идентификатор измерения у провайдера.';
 
 
 create unique index observations_device_external_id_key
@@ -156,8 +146,6 @@ create index observations_device_recorded_at_idx
   on public.observations (device_id, recorded_at desc) where device_id is not null;
 
 
--- a band reports every night. if each reading became an event the timeline
--- would be unreadable, so routine device data is charted but not logged.
 create or replace function public.observations_after_insert()
 returns trigger
 language plpgsql
@@ -165,7 +153,6 @@ security definer
 set search_path = ''
 as $$
 begin
-  -- Routine device telemetry stays off the timeline (see note above).
   if new.source = 'DEVICE' and not new.is_abnormal then
     return null;
   end if;

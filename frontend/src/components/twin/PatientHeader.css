@@ -1,0 +1,148 @@
+.patient-header {
+  container: patient-header / inline-size;
+  border-radius: 16px;
+  background: linear-gradient(110deg, #f8f8ff, #fdfdff);
+  padding: 16px 12px 28px 16px;
+  color: #17132e;
+}
+
+.patient-header__layout {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+
+.patient-header__identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  min-width: 0;
+}
+
+.patient-header__avatar {
+  display: flex;
+  flex: 0 0 112px;
+  width: 112px;
+  height: 112px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #ede9fe;
+  color: var(--color-primary);
+  font-size: 30px;
+  font-weight: 600;
+}
+
+.patient-header__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.patient-header__details { min-width: 0; padding-top: 6px; }
+.patient-header__name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.patient-header__name { font-size: 24px; font-weight: 600; line-height: 1.2; letter-spacing: -0.5px; overflow-wrap: anywhere; }
+.patient-header__gender { color: #7c75a9; font-size: 22px; line-height: 1; }
+
+.patient-header__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #ddf8ef;
+  color: #099b7d;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.patient-header__status[data-active="false"] { background: #eeecf6; color: #77718f; }
+.patient-header__status-dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+.patient-header__age { margin-top: 4px; color: #7e779e; font-size: 13px; line-height: 20px; }
+.patient-header__clinic { color: #603cff; font-weight: 500; }
+
+.patient-header__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 0;
+  margin-top: 5px;
+  color: #7e779e;
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.patient-header__fact-item { min-width: 0; padding-right: 12px; }
+.patient-header__fact-item:last-child { padding-right: 0; }
+.patient-header__fact-item:nth-child(n + 3) { padding-left: 12px; border-left: 1px solid #ded9f4; }
+.patient-header__fact { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.patient-header__fact span { overflow-wrap: anywhere; }
+.patient-header__badges { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 6px; }
+
+.patient-header__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  border-radius: 7px;
+  background: #eeecff;
+  color: #47406f;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.patient-header__badge svg { flex-shrink: 0; }
+.patient-header__badge--allergy { background: #ffe8ee; color: #ff303f; }
+.patient-header__summary { display: grid; grid-template-columns: 0.9fr 1fr; align-items: stretch; gap: 10px; min-width: 0; width: 100%; max-width: 620px; justify-self: end; }
+
+.patient-header__card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  min-height: 96px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+
+.patient-header__card--risk { color: #7e779e; background: #f0edfa; }
+.patient-header__card--risk[data-risky="true"] { color: #ff2035; background: #ffedf2; }
+.patient-header__card--phase { border-color: #e7e2ff; background: rgb(255 255 255 / 55%); }
+.patient-header__card-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 36px; height: 36px; border-radius: 10px; background: #e8e3f7; }
+.patient-header__card-icon svg { width: 20px; height: 20px; }
+.patient-header__card--risk[data-risky="true"] .patient-header__card-icon { background: #ffe4eb; }
+.patient-header__card--phase .patient-header__card-icon { color: #603cff; background: #eeebff; }
+.patient-header__card-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.patient-header__card-title { font-size: 16px; font-weight: 600; line-height: 22px; letter-spacing: -0.25px; }
+.patient-header__risk-description { margin-top: 3px; font-size: 14px; line-height: 18px; }
+.patient-header__card-meta { margin-top: 3px; color: #7e779e; font-size: 13px; line-height: 18px; }
+.patient-header__chevron { display: flex; flex-shrink: 0; margin-top: 22px; }
+.patient-header__chevron svg { width: 16px; height: 16px; }
+.patient-header__card--phase .patient-header__chevron { color: #8174bb; }
+@container patient-header (min-width: 1200px) {
+  .patient-header__layout { grid-template-columns: minmax(0, 1fr) minmax(520px, 42%); }
+}
+
+@container patient-header (min-width: 1460px) {
+  .patient-header__layout { grid-template-columns: minmax(0, 1fr) 620px; }
+}
+
+@container patient-header (max-width: 700px) {
+  .patient-header__avatar { flex-basis: 72px; width: 72px; height: 72px; font-size: 23px; }
+  .patient-header__identity { gap: 14px; }
+  .patient-header__details { padding-top: 0; }
+  .patient-header__name { font-size: 20px; }
+  .patient-header__summary { grid-template-columns: 1fr; }
+}
+
+@container patient-header (max-width: 400px) {
+  .patient-header__identity { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  .patient-header__fact-item:nth-child(n + 3) { padding-left: 0; border-left: 0; }
+  .patient-header__card-title { font-size: 15px; }
+}

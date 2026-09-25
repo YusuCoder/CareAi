@@ -5,7 +5,6 @@ import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import type { MembershipRole, Organization, OrganizationMembership, Profile } from '../lib/database.types'
 
-/** A membership joined with the organization it belongs to. */
 export interface Membership extends OrganizationMembership {
   organization: Organization
 }
@@ -15,7 +14,6 @@ interface AuthContextValue {
   user: User | null
   profile: Profile | null
   memberships: Membership[]
-  /** The membership the UI is currently acting under. */
   activeMembership: Membership | null
   setActiveMembership: (membershipId: string) => void
   role: MembershipRole | null
@@ -37,7 +35,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Session bootstrap + subscription.
   useEffect(() => {
     let cancelled = false
 
@@ -55,8 +52,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [])
 
-  // Load profile + memberships whenever the signed-in user changes. Both reads
-  // go through RLS: a user can always see their own profile and memberships.
   useEffect(() => {
     const userId = session?.user.id
     if (!userId) {
@@ -157,18 +152,7 @@ export function useAuth(): AuthContextValue {
   return context
 }
 
-/** Where a role lands after signing in. */
 // eslint-disable-next-line react-refresh/only-export-components
-export function homeRouteForRole(role: MembershipRole | null): string {
-  switch (role) {
-    case 'HOSPITAL_DOCTOR':
-      return '/hospital'
-    case 'ORGANIZATION_ADMIN':
-    case 'POLYCLINIC_DOCTOR':
-      return '/polyclinic'
-    case 'NURSE':
-      return '/nurse'
-    default:
-      return '/'
-  }
+export function homeRouteForRole(_role: MembershipRole | null): string {
+  return '/'
 }

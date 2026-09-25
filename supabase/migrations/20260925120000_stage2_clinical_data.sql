@@ -1,8 +1,3 @@
--- stage 2: the clinical data itself.
--- diagnoses / observations / labs / meds / procedures / allergies, plus
--- twin_events which is just the timeline on top of them.
-
--- composite keys, so a clinical row cannot reference another patients episode
 alter table public.hospitalizations
   add constraint hospitalizations_id_patient_key unique (id, patient_id);
 
@@ -10,8 +5,6 @@ alter table public.care_plans
   add constraint care_plans_id_patient_key unique (id, patient_id);
 
 
--- provenance. a ward thermometer and the patients own thermometer are not
--- the same thing and the twin has to show which is which.
 create type public.clinical_source as enum (
   'HOSPITAL',
   'POLYCLINIC',
@@ -124,7 +117,6 @@ create type public.twin_event_type as enum (
 );
 
 
--- chronic history and episode diagnoses in one table
 create table public.diagnoses (
   id                  uuid primary key default gen_random_uuid(),
   patient_id          uuid not null references public.patients (id) on delete cascade,
@@ -159,10 +151,9 @@ create table public.diagnoses (
     on delete restrict
 );
 
-comment on table public.diagnoses is 'Historical and active diagnoses of a patient.';
-comment on column public.diagnoses.code is 'ICD-10 code as plain text (e.g.';
-comment on column public.diagnoses.diagnosed_at is
-  'Date, not timestamp: the onset hour of a chronic condition is never known.';
+comment on table public.diagnoses is 'Текущие и перенесённые диагнозы пациента.';
+comment on column public.diagnoses.code is 'Код диагноза по МКБ-10.';
+comment on column public.diagnoses.diagnosed_at is 'Дата установления диагноза без времени суток.';
 
 create index diagnoses_patient_status_idx on public.diagnoses (patient_id, status);
 create index diagnoses_patient_diagnosed_at_idx on public.diagnoses (patient_id, diagnosed_at desc);
@@ -175,8 +166,6 @@ create trigger diagnoses_set_updated_at
   for each row execute function public.set_updated_at();
 
 
--- the busiest table. vitals and patient reported symptoms live together so
--- they chart on one line, source tells them apart.
 create table public.observations (
   id                  uuid primary key default gen_random_uuid(),
   patient_id          uuid not null references public.patients (id) on delete cascade,
@@ -223,14 +212,11 @@ create table public.observations (
     on delete restrict
 );
 
-comment on table public.observations is
-  'Longitudinal measurements and patient-reported observations.';
-comment on column public.observations.value_secondary is
-  'Diastolic value; used by BLOOD_PRESSURE only.';
-comment on column public.observations.recorded_at is 'When the measurement was TAKEN.';
-comment on column public.observations.source is 'Provenance.';
-comment on column public.observations.is_abnormal is
-  'Set by the clinician or by the Stage 8 risk engine.';
+comment on table public.observations is 'Измерения и сообщения пациента о самочувствии.';
+comment on column public.observations.value_secondary is 'Диастолическое давление; используется только для BLOOD_PRESSURE.';
+comment on column public.observations.recorded_at is 'Время проведения измерения.';
+comment on column public.observations.source is 'Источник измерения.';
+comment on column public.observations.is_abnormal is 'Признак отклонения, установленный врачом или модулем оценки риска.';
 
 create index observations_patient_recorded_at_idx
   on public.observations (patient_id, recorded_at desc);
@@ -249,7 +235,6 @@ create trigger observations_set_updated_at
   for each row execute function public.set_updated_at();
 
 
--- separate from observations because labs have reference ranges and panels
 create table public.lab_results (
   id                  uuid primary key default gen_random_uuid(),
   patient_id          uuid not null references public.patients (id) on delete cascade,
@@ -288,8 +273,8 @@ create table public.lab_results (
     on delete restrict
 );
 
-comment on table public.lab_results is 'Laboratory measurements.';
-comment on column public.lab_results.flag is 'LOW/NORMAL/HIGH/CRITICAL.';
+comment on table public.lab_results is 'Результаты лабораторных исследований.';
+comment on column public.lab_results.flag is 'Оценка результата: ниже нормы, норма, выше нормы или критический уровень.';
 
 create index lab_results_patient_collected_at_idx
   on public.lab_results (patient_id, collected_at desc);
@@ -305,7 +290,6 @@ create trigger lab_results_set_updated_at
   for each row execute function public.set_updated_at();
 
 
--- prescriptions only. no adherence tracking here, that comes with the bot.
 create table public.medications (
   id                  uuid primary key default gen_random_uuid(),
   patient_id          uuid not null references public.patients (id) on delete cascade,
@@ -345,10 +329,9 @@ create table public.medications (
     on delete restrict
 );
 
-comment on table public.medications is 'Medications prescribed to a patient.';
-comment on column public.medications.frequency_text is
-  'Free-text schedule for anything the enum cannot express.';
-comment on column public.medications.prescribed_by is 'Prescribing clinician.';
+comment on table public.medications is 'Лекарственные назначения пациента.';
+comment on column public.medications.frequency_text is 'Произвольный график приёма, не представленный в перечислении частот.';
+comment on column public.medications.prescribed_by is 'Врач, назначивший препарат.';
 
 create index medications_patient_status_idx on public.medications (patient_id, status);
 create index medications_care_plan_id_idx on public.medications (care_plan_id);
@@ -389,8 +372,7 @@ create table public.procedures (
     on delete restrict
 );
 
-comment on table public.procedures is
-  'Medical procedures and interventions (surgery, imaging, diagnostic, therapeutic).';
+comment on table public.procedures is 'Медицинские процедуры и вмешательства.';
 
 create index procedures_patient_performed_at_idx
   on public.procedures (patient_id, performed_at desc);
@@ -404,7 +386,6 @@ create trigger procedures_set_updated_at
   for each row execute function public.set_updated_at();
 
 
--- small on purpose, just enough for a warning badge
 create table public.allergies (
   id               uuid primary key default gen_random_uuid(),
   patient_id       uuid not null references public.patients (id) on delete cascade,
@@ -426,7 +407,7 @@ create table public.allergies (
     on delete restrict
 );
 
-comment on table public.allergies is 'Patient allergies.';
+comment on table public.allergies is 'Аллергии пациента.';
 
 create index allergies_patient_status_idx on public.allergies (patient_id, status);
 create index allergies_recorded_by_idx on public.allergies (recorded_by);
@@ -440,8 +421,6 @@ create trigger allergies_set_updated_at
   for each row execute function public.set_updated_at();
 
 
--- timeline layer. every row points back at the real record, nothing medical
--- is stored only here.
 create table public.twin_events (
   id               uuid primary key default gen_random_uuid(),
   patient_id       uuid not null references public.patients (id) on delete cascade,
@@ -462,13 +441,10 @@ create table public.twin_events (
     check ((source_table is null) = (source_id is null))
 );
 
-comment on table public.twin_events is
-  'Append-only chronological event stream of the Digital Twin.';
-comment on column public.twin_events.phase is
-  'HOSPITAL or HOME — which side of the discharge line the event sits on.';
-comment on column public.twin_events.title is
-  'Pre-rendered one-line label ("Temperature 38.2 °C"), so the timeline does not need to join six tables.';
-comment on column public.twin_events.metadata is 'Event-specific extras only.';
+comment on table public.twin_events is 'Хронология цифрового двойника. Допускается только добавление событий.';
+comment on column public.twin_events.phase is 'Этап наблюдения: HOSPITAL до выписки, HOME после выписки.';
+comment on column public.twin_events.title is 'Готовый заголовок события для отображения без дополнительных запросов.';
+comment on column public.twin_events.metadata is 'Дополнительные данные, относящиеся к событию.';
 
 create index twin_events_patient_occurred_at_idx
   on public.twin_events (patient_id, occurred_at desc);
@@ -479,7 +455,6 @@ create index twin_events_severity_idx
 create index twin_events_source_idx on public.twin_events (source_table, source_id);
 
 
--- append only
 create or replace function public.twin_events_block_mutation()
 returns trigger
 language plpgsql
@@ -491,8 +466,7 @@ begin
 end;
 $$;
 
-comment on function public.twin_events_block_mutation() is
-  'BEFORE UPDATE/DELETE on twin_events: the Digital Twin timeline is immutable.';
+comment on function public.twin_events_block_mutation() is 'Запрещает изменение и удаление событий цифрового двойника.';
 
 create trigger twin_events_no_update
   before update on public.twin_events
@@ -546,7 +520,6 @@ as $$
 $$;
 
 
--- the only thing that writes twin_events
 create or replace function public.log_twin_event(
   p_patient_id      uuid,
   p_event_type      public.twin_event_type,
@@ -589,8 +562,7 @@ begin
 end;
 $$;
 
-comment on function public.log_twin_event is
-  'Appends one event to the Digital Twin timeline and refreshes digital_twins.last_updated_at.';
+comment on function public.log_twin_event is 'Добавляет событие в хронологию и обновляет digital_twins.last_updated_at.';
 
 
 create or replace function public.diagnoses_after_insert()
@@ -829,7 +801,6 @@ create trigger allergies_log_twin_event
   for each row execute function public.allergies_after_insert();
 
 
--- also keeps digital_twins.current_status in sync
 create or replace function public.hospitalizations_after_write()
 returns trigger
 language plpgsql
@@ -840,9 +811,6 @@ declare
   v_org_name       text;
   v_status_changed boolean;
 begin
-  -- OLD is unassigned on INSERT, so it is never touched in the same
-  -- expression as a TG_OP test (PostgreSQL does not promise to short-circuit
-  -- a boolean OR).
   if tg_op = 'UPDATE' then
     v_status_changed := old.status is distinct from new.status;
   else
@@ -870,7 +838,6 @@ begin
     end if;
   end if;
 
-  -- Discharge: on UPDATE, or on INSERT of an already-closed episode (seed data).
   if new.status in ('DISCHARGED', 'TRANSFERRED') and v_status_changed then
     perform public.log_twin_event(
       new.patient_id, 'PATIENT_DISCHARGED', 'HOSPITAL',
@@ -941,7 +908,6 @@ begin
        and current_status <> 'HOSPITALIZED';
   end if;
 
-  -- Follow-up finished and no other plan is running: back to stable.
   if v_became_completed then
     update public.digital_twins
        set current_status = 'STABLE'
@@ -1075,7 +1041,6 @@ revoke execute on function
 from public, anon, authenticated;
 
 
--- same as stage 1: rls on, policies later
 alter table public.diagnoses    enable row level security;
 alter table public.observations enable row level security;
 alter table public.lab_results  enable row level security;
