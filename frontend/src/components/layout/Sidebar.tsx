@@ -5,6 +5,7 @@ import { fullName } from '../../lib/format'
 import { roleLabel, t } from '../../lib/i18n'
 import { navigationFor, type NavItem } from '../../lib/navigation'
 import { useIncomingCount } from '../../lib/queries'
+import { useOverdueCount } from '../../lib/activeCalls'
 import { IconChevron, IconClose, IconCollapse, IconExpand, IconSignOut } from './icons'
 
 interface Props {
@@ -55,6 +56,10 @@ export const Sidebar: React.FC<Props> = ({ open, onClose, collapsed, onToggleCol
     activeMembership?.organization.type ?? null,
   )
   const incoming = useIncomingCount(items.some((item) => item.badge === 'incoming'))
+  const overdue = useOverdueCount(items.some((item) => item.badge === 'overdue'))
+
+  const badgeCount = (kind: NavItem['badge']) =>
+    kind === 'incoming' ? incoming : kind === 'overdue' ? overdue : 0
 
   const showLabels = !collapsed
   const [home, ...work] = items
@@ -62,6 +67,7 @@ export const Sidebar: React.FC<Props> = ({ open, onClose, collapsed, onToggleCol
 
   const renderItem = (item: NavItem) => {
     const { to, label, Icon, badge, end } = item
+    const count = badgeCount(badge)
     return (
       <li key={to}>
         <NavLink
@@ -94,24 +100,24 @@ export const Sidebar: React.FC<Props> = ({ open, onClose, collapsed, onToggleCol
                   >
                     {label}
                   </span>
-                  {badge === 'incoming' && incoming > 0 && (
+                  {count > 0 && (
                     <span
                       className="tabular rounded-full px-1.5 py-0.5 text-[0.6875rem] font-semibold text-[color:var(--color-rail-deep)]"
                       style={{ backgroundColor: 'var(--color-spine-alert)' }}
                     >
-                      {incoming}
+                      {count}
                     </span>
                   )}
                   <IconChevron />
                 </>
               )}
 
-              {collapsed && badge === 'incoming' && incoming > 0 && (
+              {collapsed && count > 0 && (
                 <span
                   className="tabular absolute -right-1.5 -top-1 flex size-[1.0625rem] items-center justify-center rounded-full text-[0.625rem] font-semibold text-[color:var(--color-rail-deep)]"
                   style={{ backgroundColor: 'var(--color-spine-alert)' }}
                 >
-                  {incoming}
+                  {count}
                 </span>
               )}
 

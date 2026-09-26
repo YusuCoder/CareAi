@@ -2,12 +2,15 @@ import { Link } from 'react-router-dom'
 
 import { DashboardLayout } from '../components/layout/DashboardLayout'
 import { EmptyState, Panel } from '../components/PatientRow'
+import { useAuth } from '../contexts/AuthContext'
 import { useAttention } from '../lib/queries'
+import { seesTelegramFeed } from '../lib/telegram'
 import { dateTime } from '../lib/format'
 import { t } from '../lib/i18n'
 
 export const AttentionPage: React.FC = () => {
-  const { data: events, loading, error } = useAttention()
+  const { role } = useAuth()
+  const { data: events, loading, error } = useAttention({ includeTelegram: seesTelegramFeed(role) })
 
   return (
     <DashboardLayout title={t.attention.title} subtitle={t.attention.subtitle}>

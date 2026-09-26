@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
+import { useRealtimeVersion } from './realtime'
 import { supabase } from './supabase'
+import { isTelegramEvent } from './telegram'
 import type {
-  Allergy, CareAssignment, CarePlan, Device, Diagnosis, DigitalTwin,
+  ActiveCallRow, Allergy, CareAssignment, CarePlan, CarePlanVisit, Device, Diagnosis, DigitalTwin,
   Hospitalization, LabResult, Medication, Observation, ObservationType,
   Patient, Procedure, TwinEvent,
 } from './database.types'
@@ -26,24 +28,36 @@ export interface TwinData {
   carePlans: CarePlan[]
   assignments: AssignmentWithWorker[]
   devices: Device[]
+  visits: CarePlanVisit[]
+  activeCalls: ActiveCallRow[]
   events: TwinEvent[]
+  /** id -> название: события несут только organization_id. */
+  organizationNames: Record<string, string>
 }
 
 const EMPTY: TwinData = {
   patient: null, primaryClinic: null, twin: null, observations: [], diagnoses: [], labs: [],
   medications: [], procedures: [], allergies: [], hospitalizations: [],
-  carePlans: [], assignments: [], devices: [], events: [],
+  carePlans: [], assignments: [], devices: [], visits: [], activeCalls: [], events: [],
+  organizationNames: {},
 }
 
-export function usePatientTwin(patientId: string | undefined) {
+/** `includeTelegram: false` убирает события бота из общей ленты — у врачей они во вкладке «Telegram». */
+export function usePatientTwin(patientId: string | undefined, { includeTelegram = true } = {}) {
   const [data, setData] = useState<TwinData>(EMPTY)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const loadedFor = useRef<string | undefined>(undefined)
+  // новая запись в хронологии (ответ в Telegram, тревога, смена риска) — перечитываем двойника
+  const version = useRealtimeVersion('twin_events', {
+    filter: patientId ? `patient_id=eq.${patientId}` : undefined,
+    enabled: Boolean(patientId),
+  })
 
   useEffect(() => {
     if (!patientId) return
     let cancelled = false
-    setLoading(true)
+    if (loadedFor.current !== patientId) setLoading(true)
     setError(null)
 
     const load = async () => {
@@ -53,7 +67,7 @@ export function usePatientTwin(patientId: string | undefined) {
       const [
         patient, twin, observations, diagnoses, labs, medications,
         procedures, allergies, hospitalizations, carePlans, assignments,
-        devices, events, organizations,
+        devices, visits, activeCalls, events, organizations,
       ] = await Promise.all([
         supabase.from('patients').select('*').eq('id', patientId).maybeSingle(),
         supabase.from('digital_twins').select('*').eq('patient_id', patientId).maybeSingle(),
@@ -72,7 +86,9 @@ export function usePatientTwin(patientId: string | undefined) {
           .eq('patient_id', patientId)
           .order('assigned_at', { ascending: false }),
         byPatient('devices').order('linked_at', { ascending: false }),
-        byPatient('twin_events').order('occurred_at', { ascending: false }).limit(200),
+        byPatient('care_plan_visits').order('scheduled_for', { ascending: false }),
+        byPatient('active_calls').order('created_at', { ascending: false }),
+        byPatient('twin_events').order('occurred_at', { ascending: false }).limit(2000),
         supabase.from('organizations').select('id, name'),
       ])
 
@@ -80,7 +96,7 @@ export function usePatientTwin(patientId: string | undefined) {
 
       const firstError = [patient, twin, observations, diagnoses, labs, medications,
         procedures, allergies, hospitalizations, carePlans, assignments, devices,
-        events, organizations]
+        visits, activeCalls, events, organizations]
         .find((result) => result.error)?.error
 
       if (firstError) setError(firstError.message)
@@ -103,8 +119,13 @@ export function usePatientTwin(patientId: string | undefined) {
         carePlans: (carePlans.data ?? []) as unknown as CarePlan[],
         assignments: (assignments.data ?? []) as unknown as AssignmentWithWorker[],
         devices: (devices.data ?? []) as unknown as Device[],
-        events: (events.data ?? []) as unknown as TwinEvent[],
+        visits: (visits.data ?? []) as unknown as CarePlanVisit[],
+        activeCalls: (activeCalls.data ?? []) as unknown as ActiveCallRow[],
+        events: ((events.data ?? []) as unknown as TwinEvent[])
+          .filter((event) => includeTelegram || !isTelegramEvent(event)),
+        organizationNames: Object.fromEntries(orgs.map((o) => [o.id, o.name])),
       })
+      loadedFor.current = patientId
       setLoading(false)
     }
 
@@ -112,7 +133,7 @@ export function usePatientTwin(patientId: string | undefined) {
     return () => {
       cancelled = true
     }
-  }, [patientId])
+  }, [patientId, version, includeTelegram])
 
   return { data, loading, error }
 }

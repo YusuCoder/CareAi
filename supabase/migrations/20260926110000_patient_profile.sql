@@ -75,6 +75,7 @@ returns table (
   has_heart_failure  boolean,
   has_hypertension   boolean,
   family_history     text[],
+  genetic_markers    jsonb,
   missing            text[]
 )
 language plpgsql
@@ -116,6 +117,7 @@ begin
     coalesce(pr.alcohol_use, 'UNKNOWN')                                      as alcohol,
     coalesce(pr.physical_activity, 'UNKNOWN')                                as activity,
     coalesce(pr.family_history, '{}')                                        as family_history,
+    coalesce(pr.genetic_markers, '{}'::jsonb)                                as genetic_markers,
     exists (select 1 from public.diagnoses d
              where d.patient_id = p.id and d.status = 'ACTIVE' and d.code like 'E11%')  as has_diabetes,
     (select min(d.diagnosed_at) from public.diagnoses d
@@ -133,15 +135,15 @@ begin
     return;
   end if;
 
-  if r.age_years is null then v_missing := v_missing || 'birth_date'; end if;
-  if r.height_cm is null then v_missing := v_missing || 'height_cm'; end if;
-  if r.weight_kg is null then v_missing := v_missing || 'weight_kg'; end if;
-  if r.systolic is null then v_missing := v_missing || 'systolic'; end if;
-  if r.smoking = 'UNKNOWN' then v_missing := v_missing || 'smoking_status'; end if;
-  if r.has_diabetes and r.hba1c is null then v_missing := v_missing || 'hba1c'; end if;
-  if r.total_cholesterol is null then v_missing := v_missing || 'total_cholesterol'; end if;
-  if r.creatinine is null then v_missing := v_missing || 'creatinine'; end if;
-  if r.hdl is null then v_missing := v_missing || 'hdl'; end if;
+  if r.age_years is null then v_missing := array_append(v_missing, 'birth_date'); end if;
+  if r.height_cm is null then v_missing := array_append(v_missing, 'height_cm'); end if;
+  if r.weight_kg is null then v_missing := array_append(v_missing, 'weight_kg'); end if;
+  if r.systolic is null then v_missing := array_append(v_missing, 'systolic'); end if;
+  if r.smoking = 'UNKNOWN' then v_missing := array_append(v_missing, 'smoking_status'); end if;
+  if r.has_diabetes and r.hba1c is null then v_missing := array_append(v_missing, 'hba1c'); end if;
+  if r.total_cholesterol is null then v_missing := array_append(v_missing, 'total_cholesterol'); end if;
+  if r.creatinine is null then v_missing := array_append(v_missing, 'creatinine'); end if;
+  if r.hdl is null then v_missing := array_append(v_missing, 'hdl'); end if;
 
   return query select
     r.id, r.age_years, r.gender, r.height_cm, r.weight_kg,
@@ -153,7 +155,7 @@ begin
     case when r.diabetes_since is not null
          then round(extract(epoch from (now() - r.diabetes_since::timestamptz)) / 31557600.0, 1) end,
     r.has_heart_failure, r.has_hypertension,
-    r.family_history, v_missing;
+    r.family_history, r.genetic_markers, v_missing;
 end;
 $$;
 

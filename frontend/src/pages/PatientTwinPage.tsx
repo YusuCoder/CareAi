@@ -2,13 +2,22 @@ import { useParams, useSearchParams } from 'react-router-dom'
 
 import { DashboardLayout } from '../components/layout/DashboardLayout'
 import { TwinTopBar } from '../components/twin/TwinTopBar'
+import { ForecastTab } from '../components/twin/ForecastTab'
 import { NowTab } from '../components/twin/NowTab'
+import { HistoryTab } from '../components/twin/HistoryTab'
+import { PlanTab } from '../components/twin/PlanTab'
+import { ChronologyTab } from '../components/twin/ChronologyTab'
 import { PatientHeader } from '../components/twin/PatientHeader'
+import { ActiveCallBanner } from '../components/twin/ActiveCallBanner'
+import { TelegramPanel } from '../components/twin/TelegramPanel'
+import { useAuth } from '../contexts/AuthContext'
 import { t } from '../lib/i18n'
+import { seesTelegramFeed } from '../lib/telegram'
 import { usePatientTwin } from '../lib/twin'
 
 const TABS = [
   { id: 'now', label: t.twin.tabs.now },
+  { id: 'forecast', label: t.forecast.tab },
   { id: 'trends', label: t.twin.tabs.trends },
   { id: 'history', label: t.twin.tabs.history },
   { id: 'plan', label: t.twin.tabs.plan },
@@ -21,7 +30,8 @@ type TabId = (typeof TABS)[number]['id']
 export const PatientTwinPage: React.FC = () => {
   const { patientId } = useParams<{ patientId: string }>()
   const [params, setParams] = useSearchParams()
-  const { data, loading, error } = usePatientTwin(patientId)
+  const { role } = useAuth()
+  const { data, loading, error } = usePatientTwin(patientId, { includeTelegram: seesTelegramFeed(role) })
 
   const active = (params.get('tab') as TabId) ?? 'now'
 
@@ -48,7 +58,8 @@ export const PatientTwinPage: React.FC = () => {
         <TwinTopBar name={`${data.patient.last_name} ${data.patient.first_name}`} />
       )}
 
-      <div className="mt-4">
+      <div className="mt-4 space-y-3">
+        {data.patient && <ActiveCallBanner patientId={data.patient.id} />}
         <PatientHeader data={data} />
       </div>
 
@@ -79,7 +90,17 @@ export const PatientTwinPage: React.FC = () => {
 
         {!loading && active === 'now' && <NowTab data={data} />}
 
-        {!loading && active !== 'now' && (
+        {!loading && active === 'forecast' && <ForecastTab data={data} />}
+
+        {!loading && active === 'history' && <HistoryTab data={data} />}
+
+        {!loading && active === 'plan' && <PlanTab data={data} />}
+
+        {!loading && active === 'timeline' && <ChronologyTab data={data} />}
+
+        {!loading && active === 'devices' && <TelegramPanel data={data} />}
+
+        {!loading && active === 'trends' && (
           <div className="rounded-lg border border-dashed border-border px-6 py-12 text-center">
             <p className="text-sm font-medium">{t.pending.title}</p>
             <p className="mx-auto mt-2 max-w-sm text-sm text-ink-muted">{t.pending.body}</p>

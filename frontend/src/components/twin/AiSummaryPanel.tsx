@@ -1,4 +1,6 @@
+import { useAuth } from '../../contexts/AuthContext'
 import { useShiftSummary } from '../../lib/ai'
+import { seesTelegramFeed } from '../../lib/telegram'
 import { relativeTime } from '../../lib/format'
 import { t } from '../../lib/i18n'
 import type { TwinData } from '../../lib/twin'
@@ -11,7 +13,8 @@ const Sparkle = () => (
 )
 
 export const AiSummaryPanel: React.FC<{ data: TwinData }> = ({ data }) => {
-  const { data: summary, loading, error, refresh } = useShiftSummary(data.patient?.id)
+  const { role } = useAuth()
+  const { data: summary, loading, error, refresh } = useShiftSummary(data.patient?.id, seesTelegramFeed(role))
 
   return (
     <section className="rounded-xl border border-border bg-surface p-4">

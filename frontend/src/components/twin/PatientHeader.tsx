@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 import { IconId, IconPhone, IconPin, IconTelegram } from './icons'
 import { ageFromBirthDate, dateShort, relativeTime } from '../../lib/format'
@@ -19,12 +20,6 @@ const IconCalendar = () => (
     <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4M9 13h5l-3 5" />
   </svg>
 )
-const IconChevronRight = () => (
-  <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden>
-    <path d="M9 6l6 6-6 6" />
-  </svg>
-)
-
 const IconAllergy = () => (
   <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M10.3 4.5 2.7 18a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 4.5a2 2 0 0 0-3.4 0Z" />
@@ -69,6 +64,7 @@ interface Props {
 
 export const PatientHeader: React.FC<Props> = ({ data, photoUrl }) => {
   const [failedPhoto, setFailedPhoto] = useState<string | null>(null)
+  const [, setParams] = useSearchParams()
   const { patient, twin } = data
   if (!patient) return null
 
@@ -77,9 +73,10 @@ export const PatientHeader: React.FC<Props> = ({ data, photoUrl }) => {
   const gender = patient.gender === 'MALE' ? '♂' : patient.gender === 'FEMALE' ? '♀' : null
   const phase = phaseCard(data)
   const allergies = data.allergies.filter((allergy) => allergy.status === 'ACTIVE')
-  const chronic = data.diagnoses.filter((d) => d.type === 'COMORBIDITY' && d.status === 'ACTIVE')
+  const chronic = data.diagnoses.filter((d) => d.status === 'ACTIVE' && (d.type === 'COMORBIDITY' || !d.hospitalization_id))
   const flagged = data.events.find((event) => event.severity !== 'INFO')
-  const risky = twin?.risk_level === 'HIGH' || twin?.risk_level === 'CRITICAL'
+  // причины от движка правил; у записей, где риск выставлен вручную, их нет
+  const reasons = twin?.risk_reasons ?? []
 
   const facts = [
     <Fact key="id" icon={<IconId />}>
@@ -141,40 +138,62 @@ export const PatientHeader: React.FC<Props> = ({ data, photoUrl }) => {
               ))}
             </div>
 
+            {/* Подробности — во вкладке «Хронология»; аллергия остаётся на виду
+                всегда, потому что от неё зависит любое назначение. */}
             <div className="patient-header__badges">
               {allergies.length > 0 && (
-                <span
-                  className="patient-header__badge patient-header__badge--allergy"
+                <button
+                  type="button"
+                  onClick={() => setParams({ tab: 'timeline' }, { replace: true })}
+                  className="patient-header__badge patient-header__badge--allergy cursor-pointer"
                 >
                   <IconAllergy />
-                  {t.twin.allergy}: {allergies.map((a) => a.substance).join(', ')}
-                </span>
+                  {t.twin.allergy}: {allergies.length}
+                </button>
               )}
-              {chronic.map((diagnosis) => (
-                <span
-                  key={diagnosis.id}
-                  className="patient-header__badge"
+              {chronic.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setParams({ tab: 'timeline' }, { replace: true })}
+                  className="patient-header__badge cursor-pointer"
                 >
-                  {diagnosis.name}
-                </span>
-              ))}
+                  {t.chronology.chronicShort}: {chronic.length} →
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="patient-header__summary">
+        <div className="patient-header__summary" data-has-phase={Boolean(phase)}>
           <div
             className="patient-header__card patient-header__card--risk"
-            data-risky={risky}
+            data-risk={twin?.risk_level ?? 'UNKNOWN'}
           >
             <span className="patient-header__card-icon">
               <IconClock />
             </span>
             <div className="patient-header__card-content">
               <p className="patient-header__card-title">
-                {twin?.risk_level ? `${riskLabel[twin.risk_level].toUpperCase()} РИСК` : t.twin.riskNotAssessed}
+                {twin?.risk_level ? `${riskLabel[twin.risk_level]} риск` : t.twin.riskNotAssessed}
               </p>
-              {flagged && (
+              {reasons.length > 0 ? (
+                <>
+                  <p className="patient-header__risk-description">{t.riskReasons.title}:</p>
+                  <ul className="patient-header__risk-reasons">
+                    {reasons.slice(0, 3).map((reason) => (
+                      <li key={`${reason.code}-${reason.source_id}`}>{reason.detail}</li>
+                    ))}
+                  </ul>
+                  <p className="patient-header__card-meta tabular">
+                    {t.riskReasons.engine} · {relativeTime(twin?.risk_evaluated_at ?? null)}
+                    {reasons.length > 3 && ` · +${reasons.length - 3}`}
+                  </p>
+                </>
+              ) : twin?.risk_evaluated_at ? (
+                <p className="patient-header__card-meta tabular">
+                  {t.riskReasons.none} · {relativeTime(twin.risk_evaluated_at)}
+                </p>
+              ) : flagged && (
                 <>
                   <p className="patient-header__risk-description">
                     {t.twin.afterDischargeRisk}
@@ -185,7 +204,6 @@ export const PatientHeader: React.FC<Props> = ({ data, photoUrl }) => {
                 </>
               )}
             </div>
-            <span className="patient-header__chevron"><IconChevronRight /></span>
           </div>
 
           {phase && (
@@ -201,7 +219,6 @@ export const PatientHeader: React.FC<Props> = ({ data, photoUrl }) => {
                   </p>
                 )}
               </div>
-              <span className="patient-header__chevron"><IconChevronRight /></span>
             </div>
           )}
         </div>

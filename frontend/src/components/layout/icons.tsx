@@ -37,6 +37,9 @@ export const IconAttention = () => (
 export const IconStaff = () => (
   <svg {...base}><circle cx="8" cy="9" r="2.8" /><circle cx="16.5" cy="9.5" r="2.3" /><path d="M2.5 19a5.5 5.5 0 0 1 11 0" /><path d="M14 19a4.6 4.6 0 0 1 7.5-3.3" /></svg>
 )
+export const IconActiveCalls = () => (
+  <svg {...base}><path d="M3.5 5.8a1.8 1.8 0 0 1 1.8-1.8h2.1a1 1 0 0 1 1 .8l.7 3a1 1 0 0 1-.5 1.1l-1.5.8a11 11 0 0 0 5.2 5.2l.8-1.5a1 1 0 0 1 1.1-.5l1.4.3" /><circle cx="17.5" cy="16.5" r="4" /><path d="M17.5 14.6v2l1.3.8" /></svg>
+)
 export const IconMenu = () => (
   <svg {...base}><path d="M4 7h16M4 12h16M4 17h16" /></svg>
 )

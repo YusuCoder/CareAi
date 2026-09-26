@@ -67,7 +67,7 @@ Deno.serve(async (request: Request) => {
     { global: { headers: { Authorization: authorization } } },
   )
 
-  const body = await request.json().catch(() => ({})) as { patientId?: string }
+  const body = await request.json().catch(() => ({})) as { patientId?: string; excludeTelegram?: boolean }
 
   const since = new Date(Date.now() - WINDOW_HOURS * 3600_000).toISOString()
 
@@ -79,6 +79,8 @@ Deno.serve(async (request: Request) => {
     .limit(MAX_EVENTS)
 
   if (body.patientId) query = query.eq('patient_id', body.patientId)
+  // врачам и администраторам сводка без данных Telegram-бота (они во вкладке «Telegram»)
+  if (body.excludeTelegram) query = query.or('metadata->>channel.is.null,metadata->>channel.neq.TELEGRAM')
 
   const { data, error } = await query
 

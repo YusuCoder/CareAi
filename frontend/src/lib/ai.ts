@@ -38,7 +38,21 @@ async function describeInvokeError(error: unknown): Promise<string> {
   }
 }
 
-export function useShiftSummary(patientId?: string): State {
+function normalizeSummary(raw: Partial<ShiftSummary> & { summary: string }): ShiftSummary {
+  const strings = (value: unknown) =>
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+
+  return {
+    summary: raw.summary,
+    findings: strings(raw.findings),
+    sources: strings(raw.sources),
+    event_count: typeof raw.event_count === 'number' ? raw.event_count : 0,
+    generated_at: raw.generated_at ?? new Date().toISOString(),
+    model: raw.model ?? '',
+  }
+}
+
+export function useShiftSummary(patientId?: string, includeTelegram = true): State {
   const [data, setData] = useState<ShiftSummary | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -52,7 +66,7 @@ export function useShiftSummary(patientId?: string): State {
     const load = async () => {
       const { data: result, error: invokeError } = await supabase.functions.invoke<
         ShiftSummary & { error?: string }
-      >('twin-summary', { body: patientId ? { patientId } : {} })
+      >('twin-summary', { body: { ...(patientId ? { patientId } : {}), excludeTelegram: !includeTelegram } })
 
       if (cancelled) return
 
@@ -60,8 +74,10 @@ export function useShiftSummary(patientId?: string): State {
         setError(await describeInvokeError(invokeError))
       } else if (result?.error) {
         setError(result.error)
+      } else if (result && typeof result === 'object' && typeof result.summary === 'string') {
+        setData(normalizeSummary(result))
       } else if (result) {
-        setData(result)
+        setError('Некорректный ответ функции twin-summary.')
       }
 
       setLoading(false)
@@ -72,7 +88,7 @@ export function useShiftSummary(patientId?: string): State {
     return () => {
       cancelled = true
     }
-  }, [nonce, patientId])
+  }, [nonce, patientId, includeTelegram])
 
   const refresh = useCallback(() => setNonce((value) => value + 1), [])
 

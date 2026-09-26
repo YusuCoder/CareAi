@@ -98,39 +98,36 @@
 
 .patient-header__badge svg { flex-shrink: 0; }
 .patient-header__badge--allergy { background: #ffe8ee; color: #ff303f; }
-.patient-header__summary { display: grid; grid-template-columns: 0.9fr 1fr; align-items: stretch; gap: 10px; min-width: 0; width: 100%; max-width: 620px; justify-self: end; }
+.patient-header__summary { display: grid; grid-template-columns: 1fr 1.1fr; align-items: stretch; gap: 8px; min-width: 0; width: 100%; max-width: 480px; justify-self: end; }
+.patient-header__summary[data-has-phase="false"] { grid-template-columns: 1fr; max-width: 230px; }
 
 .patient-header__card {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   min-width: 0;
-  min-height: 96px;
-  padding: 8px;
-  border: 1px solid transparent;
-  border-radius: 10px;
+  padding: 9px 10px;
+  border: 1px solid #e7e2f3;
+  border-radius: 8px;
+  background: #fff;
 }
 
-.patient-header__card--risk { color: #7e779e; background: #f0edfa; }
-.patient-header__card--risk[data-risky="true"] { color: #ff2035; background: #ffedf2; }
-.patient-header__card--phase { border-color: #e7e2ff; background: rgb(255 255 255 / 55%); }
-.patient-header__card-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 36px; height: 36px; border-radius: 10px; background: #e8e3f7; }
-.patient-header__card-icon svg { width: 20px; height: 20px; }
-.patient-header__card--risk[data-risky="true"] .patient-header__card-icon { background: #ffe4eb; }
-.patient-header__card--phase .patient-header__card-icon { color: #603cff; background: #eeebff; }
+.patient-header__card--risk { --header-risk-color: #6a6585; color: var(--header-risk-color); border-color: color-mix(in srgb, var(--header-risk-color) 18%, white); background: color-mix(in srgb, var(--header-risk-color) 3%, white); }
+.patient-header__card--risk[data-risk="LOW"] { --header-risk-color: #087f5b; }
+.patient-header__card--risk[data-risk="MEDIUM"] { --header-risk-color: #a3650b; }
+.patient-header__card--risk[data-risk="HIGH"],
+.patient-header__card--risk[data-risk="CRITICAL"] { --header-risk-color: #d92d20; }
+.patient-header__card-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 24px; height: 24px; border-radius: 6px; }
+.patient-header__card-icon svg { width: 16px; height: 16px; }
+.patient-header__card--risk .patient-header__card-icon { background: color-mix(in srgb, var(--header-risk-color) 8%, white); }
+.patient-header__card--phase .patient-header__card-icon { color: #603cff; background: #f0edff; }
 .patient-header__card-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.patient-header__card-title { font-size: 16px; font-weight: 600; line-height: 22px; letter-spacing: -0.25px; }
-.patient-header__risk-description { margin-top: 3px; font-size: 14px; line-height: 18px; }
-.patient-header__card-meta { margin-top: 3px; color: #7e779e; font-size: 13px; line-height: 18px; }
-.patient-header__chevron { display: flex; flex-shrink: 0; margin-top: 22px; }
-.patient-header__chevron svg { width: 16px; height: 16px; }
-.patient-header__card--phase .patient-header__chevron { color: #8174bb; }
-@container patient-header (min-width: 1200px) {
-  .patient-header__layout { grid-template-columns: minmax(0, 1fr) minmax(520px, 42%); }
-}
-
-@container patient-header (min-width: 1460px) {
-  .patient-header__layout { grid-template-columns: minmax(0, 1fr) 620px; }
+.patient-header__card-title { font-size: 13px; font-weight: 600; line-height: 18px; }
+.patient-header__risk-description { margin-top: 2px; font-size: 12px; line-height: 16px; }
+.patient-header__risk-reasons { margin-top: 2px; padding-left: 14px; list-style: disc; font-size: 12px; line-height: 16px; }
+.patient-header__card-meta { margin-top: 2px; color: #7e779e; font-size: 11px; line-height: 16px; }
+@container patient-header (min-width: 1100px) {
+  .patient-header__layout { grid-template-columns: minmax(0, 1fr) 480px; }
 }
 
 @container patient-header (max-width: 700px) {
@@ -144,5 +141,4 @@
 @container patient-header (max-width: 400px) {
   .patient-header__identity { display: grid; grid-template-columns: 1fr; gap: 12px; }
   .patient-header__fact-item:nth-child(n + 3) { padding-left: 0; border-left: 0; }
-  .patient-header__card-title { font-size: 15px; }
 }

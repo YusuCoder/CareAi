@@ -94,36 +94,38 @@ Notes:
 ## Tasks
 
 ### Database
-- [ ] `active_calls` table, two enums, indexes, the partial unique index
-- [ ] Trigger on `hospitalizations`: on transition to `DISCHARGED`, insert an
+- [x] `active_calls` table, two enums, indexes, the partial unique index
+- [x] Trigger on `hospitalizations`: on transition to `DISCHARGED`, insert an
       `active_calls` row for `patients.primary_clinic_id`, `due_at = now() + 24h`.
       Skip when the patient has no primary clinic, and record that as a visible problem
       rather than failing the discharge.
-- [ ] New `twin_event_type` values: `ACTIVE_CALL_CREATED`, `ACTIVE_CALL_ACKNOWLEDGED`,
+- [x] New `twin_event_type` values: `ACTIVE_CALL_CREATED`, `ACTIVE_CALL_ACKNOWLEDGED`,
       `ACTIVE_CALL_COMPLETED`. Remember: **enum values need their own migration**
       (a value cannot be added and used in one transaction).
-- [ ] Trigger writing those events, so the call appears on the patient timeline
-- [ ] RLS: read for members of the receiving organization and of the discharging
+- [x] Trigger writing those events, so the call appears on the patient timeline
+- [x] RLS: read for members of the receiving organization and of the discharging
       hospital; update for `POLYCLINIC_DOCTOR` / `NURSE` / `ORGANIZATION_ADMIN` of the
       receiving organization only
-- [ ] `public.active_call_stats()` — median hours to first contact, overdue count,
+- [x] `public.active_call_stats()` — median hours to first contact, overdue count,
       completed-within-24h percentage
 
 ### Frontend
-- [ ] `/active-calls` route and nav item for polyclinic roles, badge = overdue count
-- [ ] List: patient, discharging hospital, created, **live countdown**, overdue in red,
-      sorted by `due_at` ascending
-- [ ] «Принять в работу» → `ACKNOWLEDGED` (stops the clock on "nobody looked")
-- [ ] «Подтвердить осмотр» → outcome picker + notes → `COMPLETED`
-- [ ] Overdue block on the polyclinic dashboard, above everything else
-- [ ] Patient twin header: show an open call with its countdown
-- [ ] Stats strip somewhere visible — the SLA numbers are the demo's headline
+- [x] `/active-calls` route and nav item for polyclinic roles, badge = overdue count
+- [x] List: patient, created, **live countdown**, overdue in red, sorted by `due_at`
+      ascending. The discharging hospital is *not* shown — it hangs off the composite
+      FK `(hospitalization_id, patient_id)` and needs a second query; add it if the
+      demo turns out to need it.
+- [x] «Принять в работу» → `ACKNOWLEDGED` (stops the clock on "nobody looked")
+- [x] «Подтвердить осмотр» → outcome picker + notes → `COMPLETED`
+- [x] Overdue block on the polyclinic dashboard, above everything else
+- [x] Patient twin header: show an open call with its countdown
+- [x] Stats strip somewhere visible — the SLA numbers are the demo's headline
 
 ### Seed
-- [ ] One call created and completed inside the window (the good path)
-- [ ] One **overdue** call (the failure the product catches)
-- [ ] One acknowledged but not yet completed
-- [ ] Existing discharged patients get calls with plausible histories
+- [x] One call created and completed inside the window (the good path)
+- [x] One **overdue** call (the failure the product catches)
+- [x] One acknowledged but not yet completed
+- [x] Existing discharged patients get calls with plausible histories
 
 ## Acceptance
 

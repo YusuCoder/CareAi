@@ -4,17 +4,17 @@
 -- Пациенты старой версии без national_id не сопоставляются автоматически.
 
 insert into public.organizations (name, type, region, district, address, phone, latitude, longitude)
-select 'Namangan Central Hospital', 'CENTRAL_HOSPITAL', 'Namangan', 'Namangan city',
+select 'Наманганская городская центральная больница', 'CENTRAL_HOSPITAL', 'Namangan', 'Namangan city',
        'Demo street 1', '+998000000001', 40.998300, 71.672600
  where not exists (
-   select 1 from public.organizations where name = 'Namangan Central Hospital'
+   select 1 from public.organizations where name = 'Наманганская городская центральная больница'
  );
 
 insert into public.organizations (name, type, region, district, address, phone, latitude, longitude)
-select 'Polyclinic #17', 'POLYCLINIC', 'Namangan', 'Namangan city',
+select 'Семейная поликлиника №17', 'POLYCLINIC', 'Namangan', 'Namangan city',
        'Demo street 17', '+998000000017', 41.004000, 71.668000
  where not exists (
-   select 1 from public.organizations where name = 'Polyclinic #17'
+   select 1 from public.organizations where name = 'Семейная поликлиника №17'
  );
 
 insert into public.patients (national_id, first_name, last_name, birth_date, gender,
@@ -22,7 +22,7 @@ insert into public.patients (national_id, first_name, last_name, birth_date, gen
 select 'SYNTHETIC-DEMO-0001', 'Akmal', 'Karimov', date '1968-03-14', 'MALE',
        '+998000000100', 'Namangan', 'Namangan city', 'Demo street 42 (synthetic)', o.id
   from public.organizations o
- where o.name = 'Polyclinic #17'
+ where o.name = 'Семейная поликлиника №17'
 on conflict (national_id) do nothing;
 
 
@@ -38,8 +38,8 @@ declare
   v_hosp_id    uuid;
   v_plan_id    uuid;
 begin
-  select id into v_hospital   from public.organizations where name = 'Namangan Central Hospital';
-  select id into v_polyclinic from public.organizations where name = 'Polyclinic #17';
+  select id into v_hospital   from public.organizations where name = 'Наманганская городская центральная больница';
+  select id into v_polyclinic from public.organizations where name = 'Семейная поликлиника №17';
   select id into v_patient    from public.patients      where national_id = 'SYNTHETIC-DEMO-0001';
 
   select id into v_doctor from auth.users where email = 'doctor.demo@twincare.test';
@@ -89,8 +89,8 @@ begin
     insert into public.care_plans (patient_id, hospitalization_id, source_organization_id,
         created_by, approved_by, title, summary, instructions, start_date, end_date, status)
     values (v_patient, v_hosp_id, v_hospital,
-        v_doctor, v_doctor, 'Post-operative recovery',
-        'Synthetic demo plan', 'Wound check every 2 days; temperature daily.',
+        v_doctor, v_doctor, 'Послеоперационное наблюдение',
+        'Синтетический демо-план', 'Осмотр раны раз в два дня, термометрия ежедневно.',
         current_date, current_date + 14, 'ACTIVE')
     returning id into v_plan_id;
   end if;
@@ -103,7 +103,7 @@ begin
         assigned_user_id, assigned_by, status, assigned_at, accepted_at, notes)
     values (v_patient, v_plan_id, v_polyclinic,
         v_nurse, v_admin, 'ACTIVE', now() - interval '20 hours', now() - interval '18 hours',
-        'Synthetic demo assignment');
+        'Синтетическое демо-назначение');
   end if;
 
   update public.digital_twins
@@ -124,8 +124,8 @@ declare
   v_hosp_id    uuid;
   v_plan_id    uuid;
 begin
-  select id into v_hospital   from public.organizations where name = 'Namangan Central Hospital';
-  select id into v_polyclinic from public.organizations where name = 'Polyclinic #17';
+  select id into v_hospital   from public.organizations where name = 'Наманганская городская центральная больница';
+  select id into v_polyclinic from public.organizations where name = 'Семейная поликлиника №17';
   select id into v_patient    from public.patients      where national_id = 'SYNTHETIC-DEMO-0001';
 
   select id into v_doctor from auth.users where email = 'doctor.demo@twincare.test';
@@ -420,8 +420,8 @@ declare
   v_admit      timestamptz;
   v_discharge  timestamptz;
 begin
-  select id into v_hospital   from public.organizations where name = 'Namangan Central Hospital';
-  select id into v_polyclinic from public.organizations where name = 'Polyclinic #17';
+  select id into v_hospital   from public.organizations where name = 'Наманганская городская центральная больница';
+  select id into v_polyclinic from public.organizations where name = 'Семейная поликлиника №17';
   select id into v_doctor from auth.users where email = 'doctor.demo@twincare.test';
   select id into v_admin  from auth.users where email = 'admin.demo@twincare.test';
   select id into v_nurse  from auth.users where email = 'nurse.demo@twincare.test';
@@ -656,7 +656,7 @@ declare
   v_patient  uuid;
   p          record;
 begin
-  select id into v_hospital from public.organizations where name = 'Namangan Central Hospital';
+  select id into v_hospital from public.organizations where name = 'Наманганская городская центральная больница';
   select id into v_doctor from auth.users where email = 'doctor.demo@twincare.test';
 
   if v_doctor is null then
@@ -713,8 +713,26 @@ begin
        now() - interval '30 days', 'HOSPITAL', v_doctor, v_hospital),
       (v_patient, 'Липидный профиль', 'ЛПВП',
        round((1.0 + (p.height % 5) * 0.09)::numeric, 2), 'ммоль/л', 1.0, 2.2,
+       now() - interval '30 days', 'HOSPITAL', v_doctor, v_hospital),
+      -- функция почек: от неё зависит выбор препаратов, без неё расчёт
+      -- отказывается считать
+      (v_patient, 'Биохимия', 'Креатинин',
+       round((72 + (p.height % 11) * 3.5)::numeric, 0), 'мкмоль/л', 62, 106,
        now() - interval '30 days', 'HOSPITAL', v_doctor, v_hospital);
   end loop;
+
+  -- Записанная непереносимость статина, чтобы проверка противопоказаний была
+  -- наглядной, а не теоретической.
+  select id into v_patient from public.patients where national_id = 'SYNTHETIC-DEMO-0005';
+  if v_patient is not null then
+    insert into public.allergies (patient_id, substance, reaction, severity, status,
+        noted_at, source, recorded_by, organization_id)
+    select v_patient, 'Аторвастатин', 'Миалгия', 'MODERATE', 'ACTIVE',
+        current_date - 400, 'POLYCLINIC', v_doctor, v_hospital
+     where not exists (
+       select 1 from public.allergies a
+        where a.patient_id = v_patient and a.substance = 'Аторвастатин');
+  end if;
 
   for p in
     select distinct d.patient_id
@@ -747,5 +765,183 @@ begin
   end loop;
 
   raise notice 'Simulation profiles seeded.';
+end;
+$$;
+
+
+-- Часть 7: активные вызовы ------------------------------------------------------
+--
+-- Для новых выписок вызов создаёт триггер. Здесь — история по уже выписанным
+-- пациентам, чтобы на экране были все состояния: уложились в срок, приняли в
+-- работу, просрочено и закрыто с опозданием.
+--
+-- Сам вызов ставит триггер при активации плана наблюдения. Здесь мы только
+-- переводим его в нужное состояние: так срабатывают те же триггеры, что и в
+-- жизни, и события попадают на хронологию.
+
+do $$
+declare
+  v_doctor uuid;
+  v_nurse  uuid;
+  h        record;
+  v_call   uuid;
+  v_state  text;
+  v_hours  numeric;
+begin
+  select id into v_doctor from auth.users where email = 'admin.demo@twincare.test';
+  select id into v_nurse  from auth.users where email = 'nurse.demo@twincare.test';
+
+  if v_doctor is null or v_nurse is null then
+    raise notice 'Демо-пользователи не найдены — активные вызовы пропущены.';
+    return;
+  end if;
+
+  -- вызовы ставит триггер при активации плана наблюдения. сид не создаёт их,
+  -- а доигрывает историю: кто взял, кто закрыл и с каким опозданием.
+  if exists (select 1 from public.active_calls where status <> 'PENDING') then
+    raise notice 'История активных вызовов уже проиграна — пропускаем.';
+    return;
+  end if;
+
+  for h in
+    select ho.id, ho.patient_id, ho.discharged_at, p.national_id, p.primary_clinic_id
+      from public.hospitalizations ho
+      join public.patients p on p.id = ho.patient_id
+     where ho.status = 'DISCHARGED'
+       and p.primary_clinic_id is not null
+     order by ho.discharged_at
+  loop
+    -- кто в каком состоянии
+    v_state := case right(h.national_id, 4)
+      when '0006' then 'OVERDUE'        -- никто не взял, срок вышел
+      when '0012' then 'ACKNOWLEDGED'   -- приняли, но не подтвердили
+      when '0008' then 'LATE'           -- закрыли, но позже 24 часов
+      else 'IN_TIME' end;
+
+    v_hours := case right(h.national_id, 4)
+      when '0001' then 6 when '0003' then 10 when '0005' then 20
+      when '0007' then 22 when '0008' then 31 when '0009' then 4
+      else 8 end;
+
+    select id into v_call
+      from public.active_calls
+     where hospitalization_id = h.id
+     limit 1;
+
+    -- нет плана наблюдения — нет вызова, и это нормально
+    if v_call is null then
+      continue;
+    end if;
+
+    if v_state = 'OVERDUE' then
+      continue;  -- остаётся PENDING, срок уже прошёл
+    end if;
+
+    update public.active_calls
+       set status = 'ACKNOWLEDGED',
+           acknowledged_by = v_nurse,
+           acknowledged_at = h.discharged_at + interval '2 hours'
+     where id = v_call;
+
+    if v_state = 'ACKNOWLEDGED' then
+      continue;  -- взяли в работу и не закрыли
+    end if;
+
+    update public.active_calls
+       set status = 'COMPLETED',
+           completed_by = v_nurse,
+           completed_at = h.discharged_at + make_interval(mins => (v_hours * 60)::int),
+           outcome = (case when v_hours > 24 then 'CONTACTED' else 'VISITED' end)::public.active_call_outcome,
+           notes = case when v_hours > 24
+                        then 'Синтетические демо-данные: связались с опозданием'
+                        else 'Синтетические демо-данные: состояние удовлетворительное' end
+     where id = v_call;
+  end loop;
+
+  raise notice 'Активные вызовы созданы.';
+end;
+$$;
+
+
+-- Часть 8: план осмотра ---------------------------------------------------------
+--
+-- У каждого действующего плана наблюдения появляется график осмотров. Часть из
+-- них уже состоялась, один у ухудшающегося пациента пропущен — пропуск должен
+-- быть виден на хронологии, ради этого визиты и вынесены в отдельную таблицу.
+
+do $$
+declare
+  v_nurse  uuid;
+  v_doctor uuid;
+  pl       record;
+  v_day    int;
+  v_kind   public.visit_kind;
+  v_status public.visit_status;
+  v_title  text;
+  v_when   date;
+begin
+  select id into v_doctor from auth.users where email = 'admin.demo@twincare.test';
+  select id into v_nurse  from auth.users where email = 'nurse.demo@twincare.test';
+
+  if v_doctor is null then
+    raise notice 'Демо-пользователи не найдены — план осмотра пропущен.';
+    return;
+  end if;
+
+  if exists (select 1 from public.care_plan_visits) then
+    raise notice 'План осмотра уже создан — пропускаем.';
+    return;
+  end if;
+
+  for pl in
+    select cp.id, cp.patient_id, cp.receiving_organization_id, cp.start_date,
+           p.national_id
+      from public.care_plans cp
+      join public.patients p on p.id = cp.patient_id
+     where cp.status in ('ACTIVE', 'COMPLETED')
+       and cp.start_date is not null
+     order by cp.start_date
+  loop
+    foreach v_day in array array[3, 10, 21]
+    loop
+      v_when := pl.start_date + v_day;
+
+      v_kind := (case v_day when 3 then 'HOME' when 10 then 'CLINIC' else 'CALL' end)::public.visit_kind;
+      v_title := case v_day
+                   when 3  then 'Первичный патронаж на дому'
+                   when 10 then 'Контрольный осмотр в поликлинике'
+                   else 'Контрольный звонок'
+                 end;
+
+      -- пропущенный осмотр только у пациента с ухудшением
+      if right(pl.national_id, 4) = '0002' and v_day = 10 then
+        v_status := 'MISSED';
+      elsif v_when <= current_date then
+        v_status := 'COMPLETED';
+      else
+        v_status := 'PLANNED';
+      end if;
+
+      insert into public.care_plan_visits (
+        care_plan_id, patient_id, organization_id, scheduled_for, kind, title,
+        assigned_user_id, status, completed_at, completed_by, notes, created_by, created_at
+      )
+      values (
+        pl.id, pl.patient_id, pl.receiving_organization_id, v_when, v_kind, v_title,
+        v_nurse, v_status,
+        case when v_status in ('COMPLETED', 'MISSED')
+             then (v_when + 1)::timestamptz else null end,
+        case when v_status in ('COMPLETED', 'MISSED') then v_nurse else null end,
+        case v_status
+          when 'COMPLETED' then 'Синтетические демо-данные: жалоб нет'
+          when 'MISSED'    then 'Синтетические демо-данные: пациент не явился, связаться не удалось'
+          else null end,
+        v_doctor,
+        pl.start_date::timestamptz
+      );
+    end loop;
+  end loop;
+
+  raise notice 'План осмотра создан.';
 end;
 $$;

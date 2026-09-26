@@ -2,8 +2,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import {
-  conditionsOf, COEFFICIENTS, DRIFT, INTERVENTIONS, fiveYearRisk, project,
-  type Effect, type Inputs,
+  conditionsOf, COEFFICIENTS, DRIFT, INTERVENTIONS, familyFactors, simulate, type Inputs,
 } from '../_shared/simulation-model.ts'
 
 const cors = {
@@ -48,14 +47,23 @@ Deno.serve(async (request: Request) => {
   )
 
   if (!body.interventionId) {
-    return json({ inputs, conditions, missing, available: summarise(available) })
+    return json({
+      inputs, conditions, missing,
+      available: summarise(available),
+      factors: familyFactors(inputs),
+    })
   }
 
   const intervention = available.find((one) => one.id === body.interventionId)
   if (!intervention) return json({ error: 'Вмешательство неприменимо к этому пациенту.' }, 400)
 
   if (missing.length > 0) {
-    return json({ inputs, conditions, missing, available: summarise(available), refused: true })
+    return json({
+      inputs, conditions, missing,
+      available: summarise(available),
+      factors: familyFactors(inputs),
+      refused: true,
+    })
   }
 
   const [allergies, medications] = await Promise.all([
@@ -87,38 +95,14 @@ Deno.serve(async (request: Request) => {
     })
   }
 
-  const markerStart: Record<Effect['marker'], number | null> = {
-    HBA1C: inputs.hba1c,
-    SBP: inputs.systolic,
-    TOTAL_CHOLESTEROL: inputs.total_cholesterol,
-    WEIGHT: null,
-  }
-
-  const trajectories = intervention.effects
-    .filter((effect) => markerStart[effect.marker] !== null)
-    .map((effect) => {
-      const start = markerStart[effect.marker] as number
-      const { baseline, treated } = project(start, DRIFT[effect.marker], effect)
-      return { marker: effect.marker, unit: effect.unit, effect, baseline, treated }
-    })
-
-  const overrides: Partial<Inputs> = {}
-  for (const effect of intervention.effects) {
-    if (effect.marker === 'HBA1C' && inputs.hba1c) overrides.hba1c = inputs.hba1c + effect.delta
-    if (effect.marker === 'SBP' && inputs.systolic) overrides.systolic = inputs.systolic + effect.delta
-    if (effect.marker === 'TOTAL_CHOLESTEROL' && inputs.total_cholesterol) {
-      overrides.total_cholesterol = inputs.total_cholesterol + effect.delta
-    }
-  }
-
-  const baselineRisk = fiveYearRisk(inputs)
-  const treatedRisk = Math.min(baselineRisk, fiveYearRisk(inputs, overrides) * intervention.riskRatio)
+  const { trajectories, risk } = simulate(inputs, intervention.effects, intervention.riskRatio)
 
   return json({
     inputs,
     conditions,
     missing,
     available: summarise(available),
+    factors: familyFactors(inputs),
     intervention: {
       id: intervention.id,
       label: intervention.label,
@@ -129,19 +113,13 @@ Deno.serve(async (request: Request) => {
     warnings,
     blocked: warnings.some((warning) => warning.level === 'BLOCK'),
     trajectories,
-    risk: {
-      baseline: round(baselineRisk),
-      treated: round(treatedRisk),
-      absoluteReduction: round(baselineRisk - treatedRisk),
-    },
+    risk,
     coefficients: COEFFICIENTS,
     drift: DRIFT,
     disclaimer:
       'Симуляция по настроенным демонстрационным параметрам. Не валидированный клинический прогноз и не назначение. Решение принимает врач.',
   })
 })
-
-const round = (n: number) => Math.round(n * 1000) / 10
 
 function summarise(list: typeof INTERVENTIONS) {
   return list.map((one) => ({

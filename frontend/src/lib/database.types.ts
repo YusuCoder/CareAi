@@ -35,7 +35,8 @@ export type ObservationType =
   | 'WEIGHT' | 'GLUCOSE' | 'PAIN' | 'NAUSEA' | 'WEAKNESS' | 'DIZZINESS'
   | 'WOUND_REDNESS' | 'SHORTNESS_OF_BREATH' | 'SWELLING'
   | 'HRV' | 'RESTING_HEART_RATE' | 'SKIN_TEMPERATURE_DELTA'
-  | 'SLEEP_DURATION' | 'SLEEP_EFFICIENCY' | 'STEPS' | 'RECOVERY_SCORE'
+  | 'SLEEP_DURATION' | 'SLEEP_EFFICIENCY' | 'STEPS' | 'RECOVERY_SCORE' | 'HEIGHT'
+  | 'WELLBEING_TREND' | 'NEW_SYMPTOMS' | 'MEDICATION_ADHERENCE'
 
 export type LabFlag = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'
 
@@ -66,6 +67,30 @@ export type TwinEventType =
   | 'CARE_PLAN_APPROVED' | 'NURSE_ASSIGNED' | 'CARE_ASSIGNMENT_ACCEPTED'
   | 'PATIENT_CHECK_IN' | 'RISK_LEVEL_CHANGED' | 'ALERT_CREATED' | 'ALERT_RESOLVED'
   | 'NOTE_ADDED' | 'DEVICE_LINKED' | 'DEVICE_UNLINKED'
+  | 'ACTIVE_CALL_CREATED' | 'ACTIVE_CALL_ACKNOWLEDGED' | 'ACTIVE_CALL_COMPLETED'
+  | 'CARE_PLAN_COMPLETED' | 'VISIT_SCHEDULED' | 'VISIT_COMPLETED' | 'VISIT_MISSED'
+  | 'MISSED_CHECK_IN' | 'TELEGRAM_LINKED'
+
+export type VisitKind = 'CALL' | 'CLINIC' | 'HOME'
+export type VisitStatus = 'PLANNED' | 'COMPLETED' | 'MISSED' | 'CANCELLED'
+
+export type CarePlanVisit = {
+  id: string
+  care_plan_id: string
+  patient_id: string
+  organization_id: string
+  scheduled_for: string
+  kind: VisitKind
+  title: string | null
+  assigned_user_id: string | null
+  status: VisitStatus
+  completed_at: string | null
+  completed_by: string | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
 
 export type DeviceProvider =
   | 'WHOOP' | 'APPLE_HEALTH' | 'GOOGLE_FIT' | 'FITBIT' | 'GARMIN' | 'OTHER'
@@ -135,8 +160,23 @@ export type DigitalTwin = {
   patient_id: string
   current_status: TwinStatus
   risk_level: RiskLevel | null
+  risk_reasons: RiskReason[]
+  risk_evaluated_at: string | null
   last_updated_at: string
   created_at: string
+}
+
+/** Одна причина уровня риска от движка правил; ссылается на исходную запись. */
+export type RiskReason = {
+  code: string
+  level: Exclude<RiskLevel, 'CRITICAL'>
+  label: string
+  detail: string
+  source_table: 'observations' | 'lab_results' | 'active_calls' | 'patient_check_ins' | null
+  source_id: string | null
+  recorded_at: string | null
+  value?: number
+  values?: number[]
 }
 
 export type Hospitalization = {
@@ -365,6 +405,7 @@ export type SimulationInputs = {
   has_heart_failure: boolean
   has_hypertension: boolean
   family_history: string[]
+  genetic_markers: Record<string, string>
   missing: string[]
 }
 
@@ -399,6 +440,96 @@ export type DeviceSyncLog = {
   created_at: string
 }
 
+export type ActiveCallStatus = 'PENDING' | 'ACKNOWLEDGED' | 'COMPLETED' | 'CANCELLED'
+
+export type ActiveCallOutcome =
+  | 'CONTACTED'
+  | 'VISITED'
+  | 'UNREACHABLE'
+  | 'REFUSED'
+  | 'ESCALATED'
+
+export type ActiveCallRow = {
+  id: string
+  patient_id: string
+  hospitalization_id: string
+  organization_id: string
+  care_plan_id: string | null
+  status: ActiveCallStatus
+  created_at: string
+  due_at: string
+  acknowledged_by: string | null
+  acknowledged_at: string | null
+  completed_by: string | null
+  completed_at: string | null
+  outcome: ActiveCallOutcome | null
+  notes: string | null
+}
+
+export type ActiveCallStats = {
+  total: number
+  pending: number
+  overdue: number
+  completed: number
+  within_24h: number
+  median_hours: number | null
+}
+
+export type AlertKind = 'RISK' | 'MISSED_CHECK_IN' | 'EMERGENCY'
+export type AlertStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
+
+export type AlertRow = {
+  id: string
+  patient_id: string
+  organization_id: string | null
+  assigned_user_id: string | null
+  kind: AlertKind
+  level: RiskLevel
+  status: AlertStatus
+  title: string
+  reasons: RiskReason[]
+  ai_summary: string | null
+  ai_model: string | null
+  ai_generated_at: string | null
+  ai_error: string | null
+  acknowledged_at: string | null
+  acknowledged_by: string | null
+  resolved_at: string | null
+  resolved_by: string | null
+  resolution_note: string | null
+  check_in_id: string | null
+  /** Геолокация из Telegram — только у EMERGENCY. */
+  latitude: number | null
+  longitude: number | null
+  location_accuracy_m: number | null
+  location_at: string | null
+  live_location_until: string | null
+  /** Когда медсестра обещала быть у пациента; бот сообщает это пациенту. */
+  visit_eta: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type CheckInStatus = 'IN_PROGRESS' | 'COMPLETED' | 'MISSED' | 'CANCELLED'
+
+export type PatientCheckIn = {
+  id: string
+  patient_id: string
+  channel: 'TELEGRAM'
+  source: ClinicalSource
+  trigger: 'SCHEDULED' | 'PATIENT'
+  status: CheckInStatus
+  current_step: string | null
+  answers: Record<string, Record<string, unknown>>
+  started_at: string
+  due_at: string
+  completed_at: string | null
+  risk_level: RiskLevel | null
+  alert_id: string | null
+  created_at: string
+  updated_at: string
+}
+
 type Table<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] }
 
 export type Database = {
@@ -422,17 +553,46 @@ export type Database = {
       patient_profile: Table<PatientProfile>
       devices: Table<Device>
       device_sync_log: Table<DeviceSyncLog>
+      active_calls: Table<ActiveCallRow>
+      care_plan_visits: Table<CarePlanVisit>
+      alerts: Table<AlertRow>
+      patient_check_ins: Table<PatientCheckIn>
     }
     Views: Record<string, never>
     Functions: {
       follow_up_candidates: { Args: Record<string, never>; Returns: FollowUpCandidate[] }
       simulation_inputs: { Args: { p_patient_id: string }; Returns: SimulationInputs[] }
+      active_call_stats: { Args: Record<string, never>; Returns: ActiveCallStats[] }
+      evaluate_risk: {
+        Args: { p_patient_id: string }
+        Returns: { level: RiskLevel; reasons: RiskReason[]; evaluated_at: string }
+      }
+      issue_telegram_link_code: {
+        Args: { p_patient_id: string }
+        Returns: { code: string; expires_at: string }[]
+      }
+      discharge_patient: {
+        Args: { p_payload: Record<string, unknown> }
+        Returns: {
+          hospitalization_id: string
+          patient_id: string
+          care_plan_id: string | null
+          active_call_id: string | null
+        }
+      }
     }
     Enums: {
       risk_level: RiskLevel
       twin_status: TwinStatus
       membership_role: MembershipRole
       care_phase: CarePhase
+      active_call_status: ActiveCallStatus
+      active_call_outcome: ActiveCallOutcome
+      visit_kind: VisitKind
+      visit_status: VisitStatus
+      alert_kind: AlertKind
+      alert_status: AlertStatus
+      check_in_status: CheckInStatus
     }
     CompositeTypes: Record<string, never>
   }

@@ -2,8 +2,8 @@ import { useShiftSummary } from '../../lib/ai'
 import { relativeTime } from '../../lib/format'
 import { t } from '../../lib/i18n'
 
-export const ShiftSummary: React.FC = () => {
-  const { data, loading, error, refresh } = useShiftSummary()
+export const ShiftSummary: React.FC<{ includeTelegram: boolean }> = ({ includeTelegram }) => {
+  const { data, loading, error, refresh } = useShiftSummary(undefined, includeTelegram)
 
   return (
     <section className="rounded-xl border border-primary/20 bg-primary-soft/50 p-5">

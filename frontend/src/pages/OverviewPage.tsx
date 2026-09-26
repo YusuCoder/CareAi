@@ -1,4 +1,7 @@
 import { AttentionList } from '../components/dashboard/AttentionList'
+import { LiveAlerts } from '../components/dashboard/LiveAlerts'
+import { OverdueCalls } from '../components/dashboard/OverdueCalls'
+import { PatientAssistant } from '../components/dashboard/PatientAssistant'
 import { ContinuityStrip } from '../components/dashboard/ContinuityStrip'
 import { ReadyToClose } from '../components/dashboard/ReadyToClose'
 import { ShiftSummary } from '../components/dashboard/ShiftSummary'
@@ -8,11 +11,12 @@ import { useAuth } from '../contexts/AuthContext'
 import { dateTime } from '../lib/format'
 import { t } from '../lib/i18n'
 import { useAttention, useMyAssignments, usePatients, type PatientWithTwin } from '../lib/queries'
+import { dashboardAlertKinds } from '../lib/telegram'
 
 const NurseOverview: React.FC = () => {
-  const { user } = useAuth()
+  const { user, role } = useAuth()
   const { data: assignments, loading } = useMyAssignments(user?.id)
-  const { data: events, loading: eventsLoading } = useAttention()
+  const { data: events, loading: eventsLoading } = useAttention({ includeTelegram: true })
 
   const patients = assignments
     .map((assignment) => assignment.patient)
@@ -21,7 +25,13 @@ const NurseOverview: React.FC = () => {
   return (
     <DashboardLayout title={t.myPatients.title} subtitle={t.myPatients.subtitle}>
       <div className="space-y-6">
-        <ShiftSummary />
+        <LiveAlerts kinds={dashboardAlertKinds(role)} />
+
+        <PatientAssistant />
+
+        <OverdueCalls />
+
+        <ShiftSummary includeTelegram />
 
         <AttentionList patients={patients} events={events} loading={loading || eventsLoading} />
 
@@ -45,14 +55,22 @@ const NurseOverview: React.FC = () => {
   )
 }
 
+// Врачи и администраторы: без данных из Telegram. Администратору — только SOS.
 const StaffOverview: React.FC = () => {
+  const { role } = useAuth()
   const { data: patients, loading } = usePatients()
-  const { data: events, loading: eventsLoading } = useAttention()
+  const { data: events, loading: eventsLoading } = useAttention({ includeTelegram: false })
 
   return (
     <DashboardLayout title={t.home.title} subtitle={t.home.subtitle}>
       <div className="space-y-6">
-        <ShiftSummary />
+        <LiveAlerts kinds={dashboardAlertKinds(role)} />
+
+        <PatientAssistant />
+
+        <OverdueCalls />
+
+        <ShiftSummary includeTelegram={false} />
 
         <ContinuityStrip patients={patients} loading={loading} />
 
