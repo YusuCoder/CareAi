@@ -91,7 +91,7 @@ export const phaseLabel: Record<CarePhase, string> = {
 }
 
 export const t = {
-  brand: 'CareTwin AI',
+  brand: 'Care AI',
 
   nav: {
     overview: 'Обзор',
@@ -664,8 +664,8 @@ export const t = {
     twinActive: 'Digital Twin активен',
     discharge: 'Выписка',
 
-    brand: 'CareTwin AI',
-    aiPrepared: 'Подготовлено CareTwin AI',
+    brand: 'Care AI',
+    aiPrepared: 'Подготовлено Care AI',
     aiDraft: 'AI-черновик',
     needsReview: 'Требует проверки врача',
     editedByDoctor: 'Изменено врачом',
