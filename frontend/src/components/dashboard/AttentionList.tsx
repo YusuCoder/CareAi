@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { RiskBadge } from '../PatientRow'
+import { DashboardIcon } from './DashboardIcon'
 import { relativeTime } from '../../lib/format'
 import { t } from '../../lib/i18n'
 import type { AttentionEvent, PatientWithTwin } from '../../lib/queries'
@@ -20,7 +22,11 @@ export const AttentionList: React.FC<{
   patients: PatientWithTwin[]
   events: AttentionEvent[]
   loading: boolean
-}> = ({ patients, events, loading }) => {
+  error?: string | null
+}> = ({ patients, events, loading, error }) => {
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<'all' | 'risk' | 'events'>('all')
+  const [expanded, setExpanded] = useState(false)
   const cards = new Map<string, Card>()
 
   for (const patient of patients) {
@@ -59,45 +65,51 @@ export const AttentionList: React.FC<{
     const bt = b.latest ? new Date(b.latest.occurred_at).getTime() : 0
     return bt - at
   })
+  const filtered = ordered.filter(card => {
+    const matchesQuery = `${card.name} ${card.number}`.toLocaleLowerCase('ru').includes(query.trim().toLocaleLowerCase('ru'))
+    return matchesQuery && (filter === 'all' || (filter === 'risk' ? card.risk === 'HIGH' || card.risk === 'CRITICAL' : Boolean(card.latest)))
+  })
+  const visible = expanded ? filtered : filtered.slice(0, 6)
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border">
-      <header className="border-b border-border px-4 py-3">
-        <h2 className="text-sm font-semibold">{t.overview.attentionHeading}</h2>
+    <section className="overview-queue" aria-busy={loading}>
+      <header className="overview-queue__header">
+        <div><span className="overview-kicker">ПРИОРИТЕТЫ</span><h2>Требуют внимания <span className="overview-count">{loading || error ? '—' : ordered.length}</span></h2><p>Высокий риск и последние тревожные события. Откройте пациента, чтобы оценить ситуацию.</p></div>
+        <span className="overview-icon" data-tone="rose"><DashboardIcon name="pulse" /></span>
       </header>
-
-      {loading && <p className="px-4 py-8 text-center text-sm text-ink-muted">{t.common.loading}</p>}
-      {!loading && ordered.length === 0 && (
-        <p className="px-4 py-8 text-center text-sm text-ink-muted">{t.overview.attentionEmpty}</p>
+      <div className="overview-queue__tools">
+        <div className="overview-filters" role="group" aria-label="Фильтр приоритетов">{([['all', 'Все'], ['risk', 'Высокий риск'], ['events', 'Есть события']] as const).map(([id, label]) => <button type="button" key={id} aria-pressed={filter === id} onClick={() => { setFilter(id); setExpanded(false) }}>{label}</button>)}</div>
+        <label className="overview-search"><DashboardIcon name="search" /><input aria-label="Найти пациента в приоритетах" placeholder="Имя или № карты" value={query} onChange={event => { setQuery(event.target.value); setExpanded(false) }} /></label>
+      </div>
+      {error && <p className="overview-error" role="alert">Список может быть неполным: {error}</p>}
+      {loading && <div className="overview-loading" role="status"><span className="overview-loading__bar" /><span className="overview-loading__bar" /><span className="overview-loading__bar" /><p>{t.common.loading}</p></div>}
+      {!loading && !error && filtered.length === 0 && (
+        <div className="overview-empty"><DashboardIcon name={ordered.length ? 'search' : 'check'} /><strong>{ordered.length ? 'Ничего не найдено' : 'В списке пока нет пациентов'}</strong><p>{ordered.length ? 'Попробуйте другое имя или измените фильтр.' : 'Пациенты с высоким риском и тревожными событиями появятся здесь.'}</p></div>
       )}
-
-      <ul className="divide-y divide-border">
-        {ordered.slice(0, 8).map((card) => (
+      {!loading && <ul className="overview-queue__list">
+        {visible.map((card) => (
           <li key={card.patientId}>
             <Link
               to={`/patients/${card.patientId}`}
-              className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors hover:bg-surface-sunken"
+              className="overview-patient"
             >
-              <span className="tabular w-10 shrink-0 text-sm text-ink-muted">№{card.number}</span>
-
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{card.name}</span>
+              <span className="overview-patient__avatar" aria-hidden>{card.name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('')}</span>
+              <span className="overview-patient__info">
+                <span className="overview-patient__name">{card.name} <small>№{card.number}</small></span>
                 {card.latest && (
-                  <span className="block truncate text-xs text-ink-muted">
+                  <span className="overview-patient__event">
                     {t.overview.changed}: {card.latest.title}
                   </span>
                 )}
               </span>
 
-              {card.risk && <RiskBadge level={card.risk} />}
-
-              <span className="tabular w-full text-xs text-ink-muted sm:w-28 sm:text-right">
-                {card.latest ? relativeTime(card.latest.occurred_at) : ''}
-              </span>
+              <span className="overview-patient__status">{card.risk && <RiskBadge level={card.risk} />}<time dateTime={card.latest?.occurred_at}>{card.latest ? relativeTime(card.latest.occurred_at) : 'По статусу двойника'}</time></span>
+              <span className="overview-patient__open"><span>Карточка</span><DashboardIcon name="arrow" /></span>
             </Link>
           </li>
         ))}
-      </ul>
+      </ul>}
+      {!loading && filtered.length > 6 && <button className="overview-show-more" type="button" onClick={() => setExpanded(value => !value)}>{expanded ? 'Свернуть список' : `Показать всех: ${filtered.length}`}</button>}
     </section>
   )
 }

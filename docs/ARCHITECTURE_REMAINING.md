@@ -80,6 +80,23 @@ up, nurse dashboard shows it.
 
 **Acceptance:** step 2 demo updates the doctor's screen without pressing reload.
 
+### Check-in rules per patient (set at discharge)
+
+Migration `20260926240000_check_in_schedules.sql`, edge function `check-in-rules`.
+
+- Doctor writes follow-up requirements in discharge step 5 («Инструкции поликлинике»).
+- CareTwin AI (`check-in-rules`) turns them into rules: times (1–4/day, 06:00–23:00, ≥2 h apart),
+  every N days, until date, answer window, questions, **personal thresholds**. Fills the
+  «Самоконтроль в Telegram» block automatically 1.5 s after typing stops; doctor edits → «изменено врачом»,
+  no more auto-overwrite.
+- Guard (`_shared/check-in-rules.ts`, unit-tested): values clamped in code; a personal threshold is kept only
+  with a quote that literally occurs in the doctor's text; WELLBEING/DYSPNEA/SYMPTOMS/MEDICATIONS always asked.
+- Saved by `discharge_patient` into `check_in_schedules` (one active per patient). Used by
+  `claim_due_check_ins` (slots, every N days, window capped at next slot), the bot (only these questions,
+  numbered «2/5») and `evaluate_risk` (personal thresholds, reason says «порог врача»).
+- No row → global `check_in_settings` as before. Twin page → «Telegram» shows the active rules.
+- Not yet: editing rules after discharge from the twin page (table + RLS allow it, no UI).
+
 ### Who sees Telegram data
 
 Events from the bot carry `twin_events.metadata.channel = 'TELEGRAM'` (migration `20260926230000`).

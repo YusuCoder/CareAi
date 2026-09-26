@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { defaultMonitoring, monitoringPayload, type MonitoringDraft } from './checkInRules'
 import { supabase } from './supabase'
 import type {
   Allergy, Diagnosis, DiagnosisType, LabResult, Medication, MedicationFrequency,
@@ -123,6 +124,8 @@ export interface DischargeDraft {
   planInstructions: string
   planEndDate: string
   visits: VisitDraft[]
+  /** Правила самоконтроля в Telegram (CareTwin AI по требованиям врача). */
+  monitoring: MonitoringDraft
 }
 
 export interface DischargeResult {
@@ -216,6 +219,7 @@ export async function submitDischarge(
             kind: visit.kind,
             title: visit.title,
           })),
+          monitoring: monitoringPayload(draft.monitoring ?? defaultMonitoring(), draft.planEndDate),
         }
       : null,
   }
@@ -401,6 +405,7 @@ export function emptyDraft(
       { key: newKey(), day_offset: 10, kind: 'CLINIC', title: 'Контрольный осмотр' },
       { key: newKey(), day_offset: 21, kind: 'CALL', title: 'Контрольный звонок' },
     ],
+    monitoring: defaultMonitoring(),
   }
 }
 

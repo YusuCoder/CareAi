@@ -5,7 +5,8 @@ import { dateTime, relativeTime, riskColor } from '../../lib/format'
 import { riskLabel, t } from '../../lib/i18n'
 import { useRealtimeVersion } from '../../lib/realtime'
 import { supabase } from '../../lib/supabase'
-import type { AlertRow, PatientCheckIn, TwinEvent } from '../../lib/database.types'
+import { QUESTION_LABEL, THRESHOLD_META, frequencyLabel, type RuleQuestion } from '../../lib/checkInRules'
+import type { AlertRow, CheckInSchedule, PatientCheckIn, TwinEvent } from '../../lib/database.types'
 import type { TwinData } from '../../lib/twin'
 
 const BOT = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.replace(/^@/, '')
@@ -50,6 +51,55 @@ function answersLine(answers: PatientCheckIn['answers']): string {
       `лекарства: ${choice('MEDICATIONS', { YES: 'приняты', NO: 'не все' })}`,
   ]
   return parts.filter(Boolean).join(' · ')
+}
+
+/** Действующие правила опроса: откуда взялись и что именно спрашиваем. */
+const RulesSummary: React.FC<{ rules: CheckInSchedule | null }> = ({ rules }) => {
+  const r = t.telegramRules
+  if (!rules) return <p className="mt-3 text-[0.8125rem] text-ink-muted">{r.none}</p>
+
+  const personal = Object.entries(rules.thresholds ?? {})
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-surface-sunken px-3 py-2.5 text-[0.8125rem]">
+      <p className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold">{r.active}</span>
+        <span className="text-xs text-ink-muted">
+          {r.fromDischarge}{rules.source === 'AI' ? ` · ${r.byAi} (CareTwin AI)` : rules.source === 'DOCTOR' ? ' · врачом' : ''}
+        </span>
+      </p>
+      <p className="mt-1">
+        {frequencyLabel(rules.times.map((time) => time.slice(0, 5)), rules.every_n_days)}
+        {rules.end_date && ` · до ${dateTime(`${rules.end_date}T00:00:00`).split(',')[0]}`}
+        {` · ждём ответ ${rules.response_window_hours} ч`}
+      </p>
+      <p className="mt-0.5 text-ink-muted">
+        {rules.questions.map((q) => QUESTION_LABEL[q as RuleQuestion] ?? q).join(', ')}
+      </p>
+      {personal.length > 0 && (
+        <ul className="mt-1 space-y-0.5 text-xs">
+          {personal.map(([code, value]) => {
+            const meta = THRESHOLD_META[code]
+            if (!meta) return null
+            const sign = meta.direction === 'ABOVE' ? '≥' : '≤'
+            return (
+              <li key={code}>
+                {meta.label}: {value.medium !== undefined && `${r.medium} ${sign} ${value.medium}`}
+                {value.medium !== undefined && value.high !== undefined && ', '}
+                {value.high !== undefined && `${r.high} ${sign} ${value.high}`} {meta.unit}
+                {value.quote && <span className="text-ink-muted"> · «{value.quote}»</span>}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {rules.requirements && (
+        <details className="mt-1">
+          <summary className="cursor-pointer text-xs text-primary">Требования врача</summary>
+          <p className="mt-1 whitespace-pre-line text-xs">{rules.requirements}</p>
+        </details>
+      )}
+    </div>
+  )
 }
 
 const Badge: React.FC<{ color: string; children: React.ReactNode }> = ({ color, children }) => (
@@ -141,6 +191,7 @@ export const TelegramPanel: React.FC<{ data: TwinData }> = ({ data }) => {
   const patient = data.patient
   const patientId = patient?.id
   const [items, setItems] = useState<Item[]>([])
+  const [rules, setRules] = useState<CheckInSchedule | null>(null)
   const [code, setCode] = useState<{ code: string; expires_at: string } | null>(null)
   const [busy, setBusy] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
@@ -163,8 +214,10 @@ export const TelegramPanel: React.FC<{ data: TwinData }> = ({ data }) => {
         .order('created_at', { ascending: false }).limit(30),
       supabase.from('twin_events').select('*').eq('patient_id', patientId)
         .eq('event_type', 'TELEGRAM_LINKED').order('occurred_at', { ascending: false }).limit(5),
-    ]).then(([checkIns, alerts, linked]) => {
+      supabase.from('check_in_schedules').select('*').eq('patient_id', patientId).eq('active', true).maybeSingle(),
+    ]).then(([checkIns, alerts, linked, schedule]) => {
       if (cancelled) return
+      setRules((schedule.data ?? null) as CheckInSchedule | null)
       const merged: Item[] = [
         ...((checkIns.data ?? []) as PatientCheckIn[]).map((row) => ({ kind: 'check_in' as const, at: row.started_at, row })),
         // тревоги из опросов, SOS и пропуски; риск от других данных сюда не относится
@@ -219,6 +272,8 @@ export const TelegramPanel: React.FC<{ data: TwinData }> = ({ data }) => {
         </span>
       </div>
       <p className="mt-1.5 max-w-2xl text-[0.8125rem] leading-snug text-ink-muted">{t.telegram.subtitle}</p>
+
+      <RulesSummary rules={rules} />
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button

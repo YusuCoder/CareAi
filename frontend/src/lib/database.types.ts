@@ -530,6 +530,28 @@ export type PatientCheckIn = {
   updated_at: string
 }
 
+export type CheckInSchedule = {
+  id: string
+  patient_id: string
+  care_plan_id: string | null
+  /** «HH:MM:SS», местное время */
+  times: string[]
+  every_n_days: number
+  start_date: string
+  end_date: string | null
+  response_window_hours: number
+  questions: string[]
+  thresholds: Record<string, { medium?: number; high?: number; quote?: string }>
+  requirements: string | null
+  source: 'AI' | 'DOCTOR' | 'DEFAULT'
+  ai_rationale: string | null
+  ai_model: string | null
+  active: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
 type Table<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] }
 
 export type Database = {
@@ -557,6 +579,7 @@ export type Database = {
       care_plan_visits: Table<CarePlanVisit>
       alerts: Table<AlertRow>
       patient_check_ins: Table<PatientCheckIn>
+      check_in_schedules: Table<CheckInSchedule>
     }
     Views: Record<string, never>
     Functions: {

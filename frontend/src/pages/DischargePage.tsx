@@ -12,6 +12,8 @@ import { DischargeSection } from '../components/discharge/DischargeSection'
 import { DischargeSuccess } from '../components/discharge/DischargeSuccess'
 import { CurrentMedicationCard, NewMedicationCard } from '../components/discharge/MedicationCard'
 import { PreDischargeCheck } from '../components/discharge/PreDischargeCheck'
+import type { RulesStatus } from '../components/discharge/TelegramRules'
+import { suggestRules } from '../lib/checkInRules'
 import { AddButton, FieldLabel, INPUT } from '../components/discharge/ui'
 import {
   emptyDraft, newKey, submitDischarge, useAdmission, useDischargeContext, useForecastGaps,
@@ -190,6 +192,46 @@ export const DischargePage: React.FC = () => {
     if (plan.instructions && !draftRef.current.planInstructions.trim()) set('planInstructions', plan.instructions)
     setPlanOrigin({ applied: true, edited: false, dismissed: false })
   }
+
+  // правила самоконтроля в Telegram: CareTwin AI составляет их по требованиям врача
+  const [rulesStatus, setRulesStatus] = useState<RulesStatus>('idle')
+  const rulesRequest = useRef(0)
+  const analyzeRules = useCallback(async () => {
+    const current = draftRef.current
+    const requirements = current.planInstructions.trim()
+    if (!hospitalizationId || !requirements) return
+
+    const request = ++rulesRequest.current
+    setRulesStatus('loading')
+    const rules = await suggestRules({
+      hospitalizationId,
+      requirements,
+      diagnoses: [current.primary_diagnosis, ...current.diagnoses.map((item) => item.name)]
+        .filter((name) => name.trim() !== ''),
+      medications: current.medications
+        .filter((item) => item.name.trim())
+        .map((item) => [item.name, item.dose && `${item.dose} ${item.dose_unit}`, item.frequency].filter(Boolean).join(' ')),
+      startDate: current.discharged_at.slice(0, 10),
+      planEndDate: current.planEndDate,
+    })
+    if (request !== rulesRequest.current) return // пришёл ответ на устаревший текст
+    if (!rules) {
+      setRulesStatus('error')
+      return
+    }
+    set('monitoring', rules)
+    setRulesStatus('ready')
+  }, [hospitalizationId, set])
+
+  // сами, когда врач перестал печатать, — пока он не правил правила вручную
+  const { followUp, planInstructions, monitoring } = draft
+  useEffect(() => {
+    if (!ready || !followUp) return
+    const requirements = planInstructions.trim()
+    if (!requirements || monitoring.source === 'DOCTOR' || requirements === monitoring.basedOn.trim()) return
+    const timer = window.setTimeout(() => void analyzeRules(), 1500)
+    return () => window.clearTimeout(timer)
+  }, [ready, followUp, planInstructions, monitoring.source, monitoring.basedOn, analyzeRules])
 
   const saveDraft = () => {
     if (!hospitalizationId) return
@@ -516,6 +558,8 @@ export const DischargePage: React.FC = () => {
           planOrigin={planOrigin}
           onApplyAiPlan={applyAiPlan}
           onDismissAiPlan={() => setPlanOrigin((value) => ({ ...value, dismissed: true }))}
+          rulesStatus={rulesStatus}
+          onAnalyzeRules={() => void analyzeRules()}
         />
 
         <PreDischargeCheck checks={review.checks} />

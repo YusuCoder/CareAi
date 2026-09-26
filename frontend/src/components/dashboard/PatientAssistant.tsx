@@ -6,6 +6,8 @@ import {
 } from '../../lib/assistant'
 import { riskColor } from '../../lib/format'
 import { t } from '../../lib/i18n'
+import { DashboardIcon } from './DashboardIcon'
+import './PatientAssistant.css'
 
 const LEVEL_COLOR: Record<HighlightLevel, string> = {
   DANGER: 'var(--color-risk-critical)',
@@ -194,6 +196,21 @@ export const PatientAssistant: React.FC = () => {
   const { messages, loading, send, reset } = usePatientAssistant()
   const [draft, setDraft] = useState<string>('')
   const bottom = useRef<HTMLDivElement>(null)
+  const input = useRef<HTMLInputElement>(null)
+  const suggestions = [
+    { label: 'Краткая сводка', prompt: 'Составь краткую сводку по пациенту [ФИО или номер карты]' },
+    { label: 'Лекарства и аллергии', prompt: 'Какие лекарства и аллергии у пациента [ФИО или номер карты]?' },
+    { label: 'Последние анализы', prompt: 'Какие отклонения в анализах у пациента [ФИО или номер карты]?' },
+  ]
+
+  const chooseSuggestion = (prompt: string) => {
+    setDraft(prompt)
+    requestAnimationFrame(() => {
+      input.current?.focus()
+      const start = prompt.indexOf('[')
+      input.current?.setSelectionRange(start, prompt.indexOf(']') + 1)
+    })
+  }
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
@@ -208,10 +225,14 @@ export const PatientAssistant: React.FC = () => {
   const last = messages[messages.length - 1]
 
   return (
-    <section className="overflow-hidden rounded-xl border border-primary/20 bg-surface">
-      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-border bg-primary-soft/40 px-4 py-3">
-        <h2 className="text-sm font-semibold text-primary">{t.assistant.title}</h2>
-        <p className="text-xs text-ink-muted">{t.assistant.subtitle}</p>
+    <section className="patient-assistant" aria-labelledby="patient-assistant-title">
+      <header className="patient-assistant__header">
+        <span className="patient-assistant__icon"><DashboardIcon name="spark" /></span>
+        <div className="patient-assistant__intro">
+          <span className="patient-assistant__eyebrow">CARE TWIN AI · ПОМОЩНИК ПО ПАЦИЕНТАМ</span>
+          <h2 id="patient-assistant-title">Спросите о пациенте</h2>
+          <p>{t.assistant.subtitle}</p>
+        </div>
         {messages.length > 0 && (
           <button
             type="button"
@@ -224,8 +245,19 @@ export const PatientAssistant: React.FC = () => {
         )}
       </header>
 
+      {messages.length === 0 && (
+        <div className="patient-assistant__suggestions">
+          <span>С чего начнём?</span>
+          {suggestions.map(({ label, prompt }) => (
+            <button key={label} type="button" onClick={() => chooseSuggestion(prompt)}>
+              {label}<DashboardIcon name="arrow" />
+            </button>
+          ))}
+        </div>
+      )}
+
       {messages.length > 0 && (
-        <div className="max-h-[36rem] space-y-3 overflow-y-auto px-4 py-4">
+        <div role="log" aria-label="Диалог о пациенте" aria-live="polite" aria-busy={loading} className="max-h-[36rem] space-y-3 overflow-y-auto px-4 py-4">
           {messages.map((message, index) =>
             message.role === 'user' ? (
               <div key={index} className="flex justify-end">
@@ -291,21 +323,23 @@ export const PatientAssistant: React.FC = () => {
           event.preventDefault()
           submit(draft)
         }}
-        className="flex gap-2 border-t border-border px-4 py-3"
+        className="patient-assistant__form"
       >
         <input
+          ref={input}
+          aria-label="Вопрос о пациенте"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           maxLength={500}
           placeholder={t.assistant.placeholder}
-          className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-[0.875rem]"
+          className="patient-assistant__input"
         />
         <button
           type="submit"
           disabled={!draft.trim() || loading}
-          className="rounded-lg bg-primary px-4 py-2 text-[0.8125rem] font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
+          className="patient-assistant__send"
         >
-          {t.assistant.send}
+          {t.assistant.send}<DashboardIcon name="arrow" />
         </button>
       </form>
     </section>

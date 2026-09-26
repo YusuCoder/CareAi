@@ -5,6 +5,7 @@ import type { DischargeAiDraft } from '../../lib/dischargeAi'
 import type { SectionReview } from '../../lib/dischargeReview'
 import type { VisitKind } from '../../lib/database.types'
 import { AddButton, AiBadge, CompletionIndicator, FieldLabel, GhostButton, INPUT, ReviewBadge, Sparkle } from './ui'
+import { TelegramRules, type RulesStatus } from './TelegramRules'
 
 const kindIcon: Record<VisitKind, string> = { HOME: '🏠', CLINIC: '🏥', CALL: '☎' }
 
@@ -148,9 +149,11 @@ export const ContinuityOfCare: React.FC<{
   planOrigin: PlanOrigin
   onApplyAiPlan: () => void
   onDismissAiPlan: () => void
+  rulesStatus: RulesStatus
+  onAnalyzeRules: () => void
 }> = ({
   draft, set, review, hasClinic, hospitalName, clinicName, clinicRegion,
-  aiPlan, planOrigin, onApplyAiPlan, onDismissAiPlan,
+  aiPlan, planOrigin, onApplyAiPlan, onDismissAiPlan, rulesStatus, onAnalyzeRules,
 }) => {
   const f = t.dischargeFlow
   const d = t.discharge
@@ -303,6 +306,19 @@ export const ContinuityOfCare: React.FC<{
               onChange={(event) => set('planInstructions', event.target.value)}
             />
           </div>
+
+          <TelegramRules
+            rules={draft.monitoring}
+            status={rulesStatus}
+            startDate={startDate}
+            planEndDate={draft.planEndDate}
+            hasRequirements={draft.planInstructions.trim() !== ''}
+            stale={draft.monitoring.source === 'DOCTOR'
+              && draft.monitoring.basedOn !== ''
+              && draft.monitoring.basedOn.trim() !== draft.planInstructions.trim()}
+            onChange={(rules) => set('monitoring', rules)}
+            onAnalyze={onAnalyzeRules}
+          />
 
           <div className="mt-5">
             <p className="text-[0.75rem] text-ink-muted">{f.tracked}</p>
