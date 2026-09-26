@@ -1,14 +1,14 @@
-# CareTwin AI
+# Care AI
 
 > **One patient. One continuous Digital Twin.**\
-> CareTwin AI is an AI-assisted continuity-of-care platform connecting
+> Care AI is an AI-assisted continuity-of-care platform connecting
 > hospital discharge, polyclinic follow-up, nurse monitoring, and
 > patient-reported data around one persistent longitudinal patient
 > record.
 
 ## Overview
 
-CareTwin AI addresses a critical transition in healthcare: treatment may
+Care AI addresses a critical transition in healthcare: treatment may
 finish in the hospital, but the patient's condition continues to change
 after discharge.
 
